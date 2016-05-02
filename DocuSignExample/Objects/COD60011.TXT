@@ -1,0 +1,121 @@
+OBJECT Codeunit 60011 DocuSign Send Confirmation
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02-05-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ProgressMessage@1000000001 : TextConst 'ENU=Preparing Document... #1#\Creating PDF... #2#\Sending with DocuSign... #3#';
+      SuccessMessage@1000000002 : TextConst 'ENU=Document %1 was successfully sent with DocuSign\Envelop id: %2';
+      ServerSaveAsPdfFailedErr@1000000000 : TextConst 'ENU=Cannot open the document because it is empty or cannot be created.;NLD=Kan het document niet openen omdat het leeg is of niet kan worden gemaakt.';
+
+    LOCAL PROCEDURE SendOrderConfirmationWithDocuSign@14(SalesHeader@1000 : Record 36);
+    VAR
+      SalesSetup@1000000000 : Record 311;
+      SalesLine@1000000001 : Record 37;
+      Customer@1000000004 : Record 18;
+      ReportSelections@1001 : Record 77;
+      SalesCalcDisc@1000000002 : Codeunit 60;
+      DocuSignManagement@1004 : Codeunit 60010;
+      ProgressDialog@1000000003 : Dialog;
+      AttachmentFilePath@1003 : Text;
+      EnvelopeId@1000000005 : Text;
+    BEGIN
+      IF GUIALLOWED THEN
+        ProgressDialog.OPEN(ProgressMessage);
+
+      IF GUIALLOWED THEN
+        ProgressDialog.UPDATE(1,'X');
+
+      SalesHeader.SETRANGE("No.",SalesHeader."No.");
+      SalesSetup.GET;
+      IF SalesSetup."Calc. Inv. Discount" THEN BEGIN
+        SalesLine.RESET;
+        SalesLine.SETRANGE("Document Type",SalesHeader."Document Type");
+        SalesLine.SETRANGE("Document No.",SalesHeader."No.");
+        SalesLine.FINDFIRST;
+        SalesCalcDisc.RUN(SalesLine);
+        SalesHeader.GET(SalesHeader."Document Type",SalesHeader."No.");
+        COMMIT;
+      END;
+      CASE SalesHeader."Document Type" OF
+        SalesHeader."Document Type"::Quote:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Quote");
+        SalesHeader."Document Type"::"Blanket Order":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Blanket");
+        SalesHeader."Document Type"::Order:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Order");
+        SalesHeader."Document Type"::"Return Order":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Return");
+        SalesHeader."Document Type"::Invoice:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Invoice");
+        SalesHeader."Document Type"::"Credit Memo":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Cr.Memo");
+        ELSE
+          EXIT;
+      END;
+
+      IF GUIALLOWED THEN
+        ProgressDialog.UPDATE(2,'X');
+
+      ReportSelections.SETFILTER("Report ID",'<>0');
+      ReportSelections.FINDFIRST;
+      AttachmentFilePath := SaveSalesHeaderReportAsPdf(SalesHeader,ReportSelections."Report ID");
+
+      IF GUIALLOWED THEN
+        ProgressDialog.UPDATE(3,'X');
+
+      Customer.GET(SalesHeader."Sell-to Customer No.");
+      Customer.TESTFIELD("E-Mail");
+      EnvelopeId := DocuSignManagement.RequestSign(Customer."E-Mail",Customer.Name,AttachmentFilePath,STRSUBSTNO('OrderConfirmation_%1.pdf',SalesHeader."No."));
+
+      IF GUIALLOWED THEN BEGIN
+        ProgressDialog.CLOSE;
+        MESSAGE(SuccessMessage,SalesHeader."No.",EnvelopeId);
+      END;
+    END;
+
+    LOCAL PROCEDURE SaveSalesHeaderReportAsPdf@15(VAR SalesHeader@1000 : Record 36;ReportId@1005 : Integer) : Text[250];
+    VAR
+      FileManagement@1003 : Codeunit 419;
+      ServerAttachmentFilePath@1004 : Text;
+    BEGIN
+      ServerAttachmentFilePath := FileManagement.ServerTempFileName('pdf');
+
+      REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,SalesHeader);
+      IF NOT EXISTS(ServerAttachmentFilePath) THEN
+        ERROR(ServerSaveAsPdfFailedErr);
+
+      EXIT(ServerAttachmentFilePath);
+    END;
+
+    [EventSubscriber(Page,42,OnBeforeActionEvent,Action33)]
+    LOCAL PROCEDURE OnBeforeEmailConfirmationFromSalesOrderCard@1000000000(VAR Rec@1000000000 : Record 36);
+    BEGIN
+      SendOrderConfirmationWithDocuSign(Rec);
+      ERROR('');
+    END;
+
+    [EventSubscriber(Page,9305,OnBeforeActionEvent,Action18)]
+    LOCAL PROCEDURE OnBeforeEmailConfirmationFromSalesOrderList@1000000003(VAR Rec@1000000000 : Record 36);
+    BEGIN
+      SendOrderConfirmationWithDocuSign(Rec);
+      ERROR('');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

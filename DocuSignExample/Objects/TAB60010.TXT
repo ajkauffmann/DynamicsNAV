@@ -1,0 +1,83 @@
+OBJECT Table 60010 DocuSign Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02-05-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;Primary Key         ;Code10         }
+    { 3   ;   ;User Name           ;Text250        }
+    { 4   ;   ;Password Key        ;GUID           }
+    { 5   ;   ;API Key             ;GUID           }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      ExchangeAccountNotConfiguredErr@1000000001 : TextConst 'ENU=The Exchange account is not configured.;NLD=Het Exchange-account is niet geconfigureerd.';
+      Text001@1000000000 : TextConst 'ENU=Autodiscovery of Exchange Service failed.;NLD=Automatische detectie van Exchange service is mislukt.';
+
+    PROCEDURE SetPassword@4(PasswordText@1001 : Text);
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF ISNULLGUID("Password Key") OR NOT ServicePassword.GET("Password Key") THEN BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.INSERT(TRUE);
+        "Password Key" := ServicePassword.Key;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.MODIFY;
+      END;
+    END;
+
+    PROCEDURE GetPassword@1000000000() : Text;
+    VAR
+      ServicePassword@1000000000 : Record 1261;
+    BEGIN
+      IF NOT ISNULLGUID("Password Key") THEN
+        IF ServicePassword.GET("Password Key") THEN
+          EXIT(ServicePassword.GetPassword());
+    END;
+
+    PROCEDURE SetAPIKey@2(KeyText@1001 : Text);
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF ISNULLGUID("API Key") OR NOT ServicePassword.GET("API Key") THEN BEGIN
+        ServicePassword.SavePassword(KeyText);
+        ServicePassword.INSERT(TRUE);
+        "API Key" := ServicePassword.Key;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(KeyText);
+        ServicePassword.MODIFY;
+      END;
+    END;
+
+    PROCEDURE GetAPIKey@1() : Text;
+    VAR
+      ServicePassword@1000000000 : Record 1261;
+    BEGIN
+      IF NOT ISNULLGUID("API Key") THEN
+        IF ServicePassword.GET("API Key") THEN
+          EXIT(ServicePassword.GetPassword());
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,450 @@
+OBJECT Table 60010 DocuSign Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02-05-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;Primary Key         ;Code10         }
+    { 3   ;   ;User Name           ;Text250        }
+    { 4   ;   ;Password Key        ;GUID           }
+    { 5   ;   ;API Key             ;GUID           }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      ExchangeAccountNotConfiguredErr@1000000001 : TextConst 'ENU=The Exchange account is not configured.;NLD=Het Exchange-account is niet geconfigureerd.';
+      Text001@1000000000 : TextConst 'ENU=Autodiscovery of Exchange Service failed.;NLD=Automatische detectie van Exchange service is mislukt.';
+
+    PROCEDURE SetPassword@4(PasswordText@1001 : Text);
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF ISNULLGUID("Password Key") OR NOT ServicePassword.GET("Password Key") THEN BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.INSERT(TRUE);
+        "Password Key" := ServicePassword.Key;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.MODIFY;
+      END;
+    END;
+
+    PROCEDURE GetPassword@1000000000() : Text;
+    VAR
+      ServicePassword@1000000000 : Record 1261;
+    BEGIN
+      IF NOT ISNULLGUID("Password Key") THEN
+        IF ServicePassword.GET("Password Key") THEN
+          EXIT(ServicePassword.GetPassword());
+    END;
+
+    PROCEDURE SetAPIKey@2(KeyText@1001 : Text);
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF ISNULLGUID("API Key") OR NOT ServicePassword.GET("API Key") THEN BEGIN
+        ServicePassword.SavePassword(KeyText);
+        ServicePassword.INSERT(TRUE);
+        "API Key" := ServicePassword.Key;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(KeyText);
+        ServicePassword.MODIFY;
+      END;
+    END;
+
+    PROCEDURE GetAPIKey@1() : Text;
+    VAR
+      ServicePassword@1000000000 : Record 1261;
+    BEGIN
+      IF NOT ISNULLGUID("API Key") THEN
+        IF ServicePassword.GET("API Key") THEN
+          EXIT(ServicePassword.GetPassword());
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 60010 DocuSign Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02-05-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+            RequestSign('','','','');
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE RequestSign@1000000000(RecipientEmail@1000000003 : Text;RecipientName@1000000002 : Text;DocumentPath@1000000001 : Text;FileName@1000000000 : Text) : Text;
+    VAR
+      ApiClient@1000000004 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Client.ApiClient";
+      Configuration@1000000005 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Client.Configuration";
+      Document@1000000014 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.Document";
+      EnvelopeDefinition@1000000010 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.EnvelopeDefinition";
+      Signer@1000000019 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.Signer";
+      SignHere@1000000021 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.SignHere";
+      Recipients@1000000022 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.Recipients";
+      Tabs@1000000020 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.Tabs";
+      EnvelopesApi@1000000023 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Api.EnvelopesApi";
+      EnvelopeSummary@1000000024 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.EnvelopeSummary";
+      CreateEnvelopeOptions@1000000025 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Api.EnvelopesApi+CreateEnvelopeOptions";
+      SystemIOFile@1000000017 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.File";
+      ByteArray@1000000016 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      List@1000000018 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.List`1";
+      SystemConvert@1000000015 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      AccountId@1000000012 : Text;
+    BEGIN
+      ApiClient := ApiClient.ApiClient('https://demo.docusign.net/restapi');
+      Configuration := Configuration.Configuration(ApiClient);
+
+      IF NOT LoginApi(Configuration,AccountId) THEN
+        ERROR('Could not login to DocuSign!\\The returned errormessage was:\%1',GETLASTERRORTEXT);
+
+      // Create a new envelope
+      EnvelopeDefinition := EnvelopeDefinition.EnvelopeDefinition();
+      EnvelopeDefinition.EmailSubject := 'Sample Signature Request';
+
+      // Add a document to the envelope
+      ByteArray := SystemIOFile.ReadAllBytes(DocumentPath);
+      Document := Document.Document;
+      Document.DocumentBase64 := SystemConvert.ToBase64String(ByteArray);
+      Document.Name := FileName;
+      Document.DocumentId := '1';
+
+      CreateInstanceOfGenericType(List,Document);
+      EnvelopeDefinition.Documents := List;
+      EnvelopeDefinition.Documents.Add(Document);
+
+      // Add a recipient to sign the documeent
+      Signer := Signer.Signer;
+      Signer.Email := RecipientEmail;
+      Signer.Name := RecipientName;
+      Signer.RecipientId := '1';
+
+      // Create a |SignHere| tab somewhere on the document for the recipient to sign
+      Signer.Tabs := Tabs.Tabs;
+      CreateInstanceOfGenericType(List,SignHere);
+      Signer.Tabs.SignHereTabs := List;
+      SignHere := SignHere.SignHere;
+      SignHere.DocumentId := '1';
+      SignHere.PageNumber := '1';
+      SignHere.RecipientId := '1';
+      SignHere.XPosition := '480';
+      SignHere.YPosition := '700';
+      Signer.Tabs.SignHereTabs.Add(SignHere);
+
+      EnvelopeDefinition.Recipients := Recipients.Recipients;
+      CreateInstanceOfGenericType(List,Signer);
+      EnvelopeDefinition.Recipients.Signers := List;
+      EnvelopeDefinition.Recipients.Signers.Add(Signer);
+
+      // set envelope status to "sent" to immediately send the signature request
+      EnvelopeDefinition.Status := 'sent';
+
+      // |EnvelopesApi| contains methods related to creating and sending Envelopes (aka signature requests)
+      EnvelopesApi := EnvelopesApi.EnvelopesApi(Configuration);
+      EnvelopeSummary := EnvelopesApi.CreateEnvelope(AccountId, EnvelopeDefinition,CreateEnvelopeOptions.CreateEnvelopeOptions);
+      EXIT(EnvelopeSummary.EnvelopeId);
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE LoginApi@1000000001(VAR Configuration@1000000000 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Client.Configuration";VAR Accountid@1000000001 : Text);
+    VAR
+      DocuSignSetup@1000000003 : Record 60010;
+      AuthenticationApi@1000000004 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Api.AuthenticationApi";
+      LoginInformation@1000000006 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.LoginInformation";
+      LoginAccount@1000000005 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Model.LoginAccount";
+      LoginOptions@1000000007 : DotNet "'DocuSign.eSign, Version=2.0.0.0, Culture=neutral, PublicKeyToken=7fca6fcbbc219ede'.DocuSign.eSign.Api.AuthenticationApi+LoginOptions";
+      AuthHeader@1000000002 : Text;
+    BEGIN
+      DocuSignSetup.GET;
+      DocuSignSetup.TESTFIELD("User Name");
+      DocuSignSetup.TESTFIELD("Password Key");
+      DocuSignSetup.TESTFIELD("API Key");
+
+
+      AuthHeader := STRSUBSTNO('{"Username":"%1", "Password":"%2", "IntegratorKey":"%3"}',DocuSignSetup."User Name",DocuSignSetup.GetPassword,DocuSignSetup.GetAPIKey);
+      Configuration.AddDefaultHeader('X-DocuSign-Authentication',AuthHeader);
+
+      AuthenticationApi := AuthenticationApi.AuthenticationApi(Configuration);
+      LoginInformation := AuthenticationApi.Login(LoginOptions.LoginOptions);
+
+      FOREACH LoginAccount IN LoginInformation.LoginAccounts DO BEGIN
+        IF LoginAccount.IsDefault = 'true' THEN BEGIN
+          Accountid := LoginAccount.AccountId;
+          BREAK;
+        END;
+      END;
+
+      IF Accountid = '' THEN BEGIN
+        LoginAccount := LoginInformation.LoginAccounts.Item(0);
+        Accountid := LoginAccount.AccountId;
+      END;
+    END;
+
+    LOCAL PROCEDURE CreateInstanceOfGenericType@1000000008(VAR Object@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";T@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object");
+    VAR
+      DotNetType@1000000005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Type";
+      GenericType@1000000007 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Type";
+      DotNetArray@1000000004 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Activator@1000000002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Activator";
+    BEGIN
+      DotNetArray := DotNetArray.CreateInstance(GETDOTNETTYPE(DotNetType),1);
+      DotNetArray.SetValue(GETDOTNETTYPE(T),0);
+
+      GenericType := GETDOTNETTYPE(Object);
+      DotNetType := GenericType.MakeGenericType(DotNetArray);
+      Object := Activator.CreateInstance(DotNetType);
+    END;
+
+    [EventSubscriber(Table,1400,OnRegisterServiceConnection)]
+    LOCAL PROCEDURE HandleDocuSignRegisterServiceConnection@14(VAR ServiceConnection@1000 : Record 1400);
+    VAR
+      DocuSignSetup@1001 : Record 60010;
+      RecRef@1002 : RecordRef;
+    BEGIN
+      IF NOT DocuSignSetup.GET THEN BEGIN
+        IF NOT DocuSignSetup.WRITEPERMISSION THEN
+          EXIT;
+        DocuSignSetup.INIT;
+        DocuSignSetup.INSERT;
+      END;
+
+      RecRef.GETTABLE(DocuSignSetup);
+
+      ServiceConnection.Status := ServiceConnection.Status::Enabled;
+      IF (DocuSignSetup."User Name" = '') OR ISNULLGUID(DocuSignSetup."Password Key") OR ISNULLGUID(DocuSignSetup."API Key") THEN
+        ServiceConnection.Status := ServiceConnection.Status::Disabled;
+
+      WITH DocuSignSetup DO
+        ServiceConnection.InsertServiceConnection(
+          ServiceConnection,RecRef.RECORDID,TABLECAPTION,'',PAGE::"DocuSign Setup");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 60011 DocuSign Send Confirmation
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02-05-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ProgressMessage@1000000001 : TextConst 'ENU=Preparing Document... #1#\Creating PDF... #2#\Sending with DocuSign... #3#';
+      SuccessMessage@1000000002 : TextConst 'ENU=Document %1 was successfully sent with DocuSign\Envelop id: %2';
+      ServerSaveAsPdfFailedErr@1000000000 : TextConst 'ENU=Cannot open the document because it is empty or cannot be created.;NLD=Kan het document niet openen omdat het leeg is of niet kan worden gemaakt.';
+
+    LOCAL PROCEDURE SendOrderConfirmationWithDocuSign@14(SalesHeader@1000 : Record 36);
+    VAR
+      SalesSetup@1000000000 : Record 311;
+      SalesLine@1000000001 : Record 37;
+      Customer@1000000004 : Record 18;
+      ReportSelections@1001 : Record 77;
+      SalesCalcDisc@1000000002 : Codeunit 60;
+      DocuSignManagement@1004 : Codeunit 60010;
+      ProgressDialog@1000000003 : Dialog;
+      AttachmentFilePath@1003 : Text;
+      EnvelopeId@1000000005 : Text;
+    BEGIN
+      IF GUIALLOWED THEN
+        ProgressDialog.OPEN(ProgressMessage);
+
+      IF GUIALLOWED THEN
+        ProgressDialog.UPDATE(1,'X');
+
+      SalesHeader.SETRANGE("No.",SalesHeader."No.");
+      SalesSetup.GET;
+      IF SalesSetup."Calc. Inv. Discount" THEN BEGIN
+        SalesLine.RESET;
+        SalesLine.SETRANGE("Document Type",SalesHeader."Document Type");
+        SalesLine.SETRANGE("Document No.",SalesHeader."No.");
+        SalesLine.FINDFIRST;
+        SalesCalcDisc.RUN(SalesLine);
+        SalesHeader.GET(SalesHeader."Document Type",SalesHeader."No.");
+        COMMIT;
+      END;
+      CASE SalesHeader."Document Type" OF
+        SalesHeader."Document Type"::Quote:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Quote");
+        SalesHeader."Document Type"::"Blanket Order":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Blanket");
+        SalesHeader."Document Type"::Order:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Order");
+        SalesHeader."Document Type"::"Return Order":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Return");
+        SalesHeader."Document Type"::Invoice:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Invoice");
+        SalesHeader."Document Type"::"Credit Memo":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Cr.Memo");
+        ELSE
+          EXIT;
+      END;
+
+      IF GUIALLOWED THEN
+        ProgressDialog.UPDATE(2,'X');
+
+      ReportSelections.SETFILTER("Report ID",'<>0');
+      ReportSelections.FINDFIRST;
+      AttachmentFilePath := SaveSalesHeaderReportAsPdf(SalesHeader,ReportSelections."Report ID");
+
+      IF GUIALLOWED THEN
+        ProgressDialog.UPDATE(3,'X');
+
+      Customer.GET(SalesHeader."Sell-to Customer No.");
+      Customer.TESTFIELD("E-Mail");
+      EnvelopeId := DocuSignManagement.RequestSign(Customer."E-Mail",Customer.Name,AttachmentFilePath,STRSUBSTNO('OrderConfirmation_%1.pdf',SalesHeader."No."));
+
+      IF GUIALLOWED THEN BEGIN
+        ProgressDialog.CLOSE;
+        MESSAGE(SuccessMessage,SalesHeader."No.",EnvelopeId);
+      END;
+    END;
+
+    LOCAL PROCEDURE SaveSalesHeaderReportAsPdf@15(VAR SalesHeader@1000 : Record 36;ReportId@1005 : Integer) : Text[250];
+    VAR
+      FileManagement@1003 : Codeunit 419;
+      ServerAttachmentFilePath@1004 : Text;
+    BEGIN
+      ServerAttachmentFilePath := FileManagement.ServerTempFileName('pdf');
+
+      REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,SalesHeader);
+      IF NOT EXISTS(ServerAttachmentFilePath) THEN
+        ERROR(ServerSaveAsPdfFailedErr);
+
+      EXIT(ServerAttachmentFilePath);
+    END;
+
+    [EventSubscriber(Page,42,OnBeforeActionEvent,Action33)]
+    LOCAL PROCEDURE OnBeforeEmailConfirmationFromSalesOrderCard@1000000000(VAR Rec@1000000000 : Record 36);
+    BEGIN
+      SendOrderConfirmationWithDocuSign(Rec);
+      ERROR('');
+    END;
+
+    [EventSubscriber(Page,9305,OnBeforeActionEvent,Action18)]
+    LOCAL PROCEDURE OnBeforeEmailConfirmationFromSalesOrderList@1000000003(VAR Rec@1000000000 : Record 36);
+    BEGIN
+      SendOrderConfirmationWithDocuSign(Rec);
+      ERROR('');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 60010 DocuSign Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02-05-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table60010;
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       PasswordTemp := '';
+                       IF ("User Name" <> '') AND (NOT ISNULLGUID("Password Key")) THEN
+                         PasswordTemp := '**********';
+
+                       APIKeyTemp := GetAPIKey();
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=General;
+                GroupType=Group }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="User Name" }
+
+    { 1000000005;2;Field  ;
+                ExtendedDatatype=Masked;
+                CaptionML=[ENU=Password;
+                           NLD=Wachtwoord Exchange-account];
+                SourceExpr=PasswordTemp;
+                OnValidate=BEGIN
+                             SetPassword(PasswordTemp);
+                             COMMIT;
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 1   ;2   ;Field     ;
+                CaptionML=ENU=API Key;
+                SourceExpr=APIKeyTemp;
+                OnValidate=BEGIN
+                             SetAPIKey(APIKeyTemp);
+                             COMMIT;
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+  }
+  CODE
+  {
+    VAR
+      PasswordTemp@1000000000 : Text;
+      APIKeyTemp@1000 : Text;
+
+    BEGIN
+    END.
+  }
+}
+

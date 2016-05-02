@@ -1,0 +1,76 @@
+OBJECT Page 60010 DocuSign Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02-05-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table60010;
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       PasswordTemp := '';
+                       IF ("User Name" <> '') AND (NOT ISNULLGUID("Password Key")) THEN
+                         PasswordTemp := '**********';
+
+                       APIKeyTemp := GetAPIKey();
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=General;
+                GroupType=Group }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="User Name" }
+
+    { 1000000005;2;Field  ;
+                ExtendedDatatype=Masked;
+                CaptionML=[ENU=Password;
+                           NLD=Wachtwoord Exchange-account];
+                SourceExpr=PasswordTemp;
+                OnValidate=BEGIN
+                             SetPassword(PasswordTemp);
+                             COMMIT;
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 1   ;2   ;Field     ;
+                CaptionML=ENU=API Key;
+                SourceExpr=APIKeyTemp;
+                OnValidate=BEGIN
+                             SetAPIKey(APIKeyTemp);
+                             COMMIT;
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+  }
+  CODE
+  {
+    VAR
+      PasswordTemp@1000000000 : Text;
+      APIKeyTemp@1000 : Text;
+
+    BEGIN
+    END.
+  }
+}
+
