@@ -10,7 +10,6 @@ OBJECT Codeunit 60010 DocuSign Management
   PROPERTIES
   {
     OnRun=BEGIN
-            RequestSign('','','','');
           END;
 
   }
@@ -34,13 +33,16 @@ OBJECT Codeunit 60010 DocuSign Management
       ByteArray@1000000016 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
       List@1000000018 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.List`1";
       SystemConvert@1000000015 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      Exception@1000000006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Exception";
       AccountId@1000000012 : Text;
     BEGIN
       ApiClient := ApiClient.ApiClient('https://demo.docusign.net/restapi');
       Configuration := Configuration.Configuration(ApiClient);
 
-      IF NOT LoginApi(Configuration,AccountId) THEN
-        ERROR('Could not login to DocuSign!\\The returned errormessage was:\%1',GETLASTERRORTEXT);
+      IF NOT LoginApi(Configuration,AccountId) THEN BEGIN
+        Exception := GETLASTERROROBJECT;
+        ERROR('Could not login to DocuSign!\\The returned errormessage was:\%1',Exception.Message);
+      END;
 
       // Create a new envelope
       EnvelopeDefinition := EnvelopeDefinition.EnvelopeDefinition();
@@ -104,8 +106,10 @@ OBJECT Codeunit 60010 DocuSign Management
       DocuSignSetup.TESTFIELD("Password Key");
       DocuSignSetup.TESTFIELD("API Key");
 
-
-      AuthHeader := STRSUBSTNO('{"Username":"%1", "Password":"%2", "IntegratorKey":"%3"}',DocuSignSetup."User Name",DocuSignSetup.GetPassword,DocuSignSetup.GetAPIKey);
+      AuthHeader := STRSUBSTNO('{"Username":"%1", "Password":"%2", "IntegratorKey":"%3"}',
+                               DocuSignSetup."User Name",
+                               DocuSignSetup.GetPassword,
+                               DocuSignSetup.GetAPIKey);
       Configuration.AddDefaultHeader('X-DocuSign-Authentication',AuthHeader);
 
       AuthenticationApi := AuthenticationApi.AuthenticationApi(Configuration);
