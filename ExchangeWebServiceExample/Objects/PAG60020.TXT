@@ -1,0 +1,172 @@
+OBJECT Page 60020 Exchange Inbox
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table60020;
+    DataCaptionExpr="Exchange Account User Name";
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    ActionList=ACTIONS
+    {
+      { 1000000007;  ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 1000000016;1 ;Action    ;
+                      Name=Setup;
+                      RunObject=Page 60021;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Setup;
+                      PromotedCategory=New }
+      { 1000000003;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1000000001;1 ;Action    ;
+                      Name=StartAutoSync;
+                      CaptionML=ENU=Start Automatic Synchronization;
+                      Promoted=Yes;
+                      Enabled=NOT AutoSync;
+                      PromotedIsBig=Yes;
+                      Image=Start;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 AutoSync := TRUE;
+                                 StartPingPong;
+                               END;
+                                }
+      { 1000000002;1 ;Action    ;
+                      Name=StopAutoSync;
+                      CaptionML=ENU=Stop Automatic Synchronization;
+                      Promoted=Yes;
+                      Enabled=AutoSync;
+                      PromotedIsBig=Yes;
+                      Image=Stop;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 AutoSync := FALSE;
+                                 StartPingPong;
+                               END;
+                                }
+      { 1000000008;1 ;Action    ;
+                      Name=SynchronizeInbox;
+                      CaptionML=ENU=Manually Synchronize Inbox;
+                      Promoted=Yes;
+                      Enabled=NOT AutoSync;
+                      PromotedIsBig=Yes;
+                      Image=Refresh;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Synchronize;
+                                 RefreshTotals;
+                                 CurrPage.UPDATE(FALSE);
+                                 StartPingPong;
+                               END;
+                                }
+      { 1000000009;1 ;Action    ;
+                      Name=ClearSyncState;
+                      CaptionML=ENU=Clear Synchronization State;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ClearLog;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ResetSyncState;
+                                 CurrPage.UPDATE(FALSE);
+                                 StartPingPong;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000015;1;Field  ;
+                Name=PingPong;
+                ControlAddIn=[Microsoft.Dynamics.Nav.Client.PingPong;PublicKeyToken=31bf3856ad364e35] }
+
+    { 1000000005;1;Group  ;
+                CaptionML=ENU=Synchronization;
+                GroupType=Group }
+
+    { 1000000004;2;Field  ;
+                CaptionML=ENU=Last Synced;
+                SourceExpr=FORMAT("Last Synced",0,'<Day,2>-<Month,2>-<Year4> <Hours24,2>:<Minutes,2>:<Seconds,2>') }
+
+    { 1000000006;1;Part   ;
+                PagePartID=Page60022;
+                PartType=Page }
+
+    { 1000000014;1;Group  ;
+                CaptionML=ENU=Totals;
+                GroupType=CueGroup }
+
+    { 1000000013;2;Field  ;
+                CaptionML=ENU=Total Items;
+                SourceExpr="Total Items";
+                Editable=false }
+
+    { 1000000012;2;Field  ;
+                CaptionML=ENU=Unread Items;
+                SourceExpr="Unread Items";
+                Editable=false }
+
+    { 1000000011;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1000000010;1;Part   ;
+                SubPageLink=MailItemId=FIELD(ItemId);
+                PagePartID=Page60023;
+                ProviderID=1000000006;
+                PartType=Page }
+
+  }
+  CODE
+  {
+    VAR
+      AutoSync@1001 : Boolean;
+
+    LOCAL PROCEDURE StartPingPong@1000000004();
+    BEGIN
+      CurrPage.PingPong.Ping(3000);
+    END;
+
+    LOCAL PROCEDURE HandlePingPong@1000000001();
+    BEGIN
+      IF AutoSync THEN
+        Synchronize;
+      RefreshTotals;
+      CurrPage.UPDATE(FALSE);
+      StartPingPong;
+    END;
+
+    EVENT PingPong@-1000000015::AddInReady@2();
+    BEGIN
+      StartPingPong;
+    END;
+
+    EVENT PingPong@-1000000015::Pong@3();
+    BEGIN
+      HandlePingPong;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

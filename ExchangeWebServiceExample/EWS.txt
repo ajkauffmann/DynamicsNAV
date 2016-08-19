@@ -1,0 +1,922 @@
+OBJECT Table 60020 EWS Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 1261=rimd;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Primary Key         ;Code10         }
+    { 3   ;   ;Exchange Account User Name;Text250 ;OnValidate=BEGIN
+                                                                "Exchange Service URL" := '';
+                                                                SetSyncState('');
+                                                              END;
+
+                                                   CaptionML=[ENU=Exchange Account User Name;
+                                                              NLD=Gebruikersnaam Exchange-account] }
+    { 4   ;   ;Exchange Account Password Key;GUID ;OnValidate=BEGIN
+                                                                "Exchange Service URL" := '';
+                                                              END;
+
+                                                   CaptionML=[ENU=Exchange Account Password Key;
+                                                              NLD=Wachtwoordsleutel Exchange-account] }
+    { 9   ;   ;Exchange Service URL;Text250       ;CaptionML=[ENU=Exchange Service URL;
+                                                              NLD=URL Exchange-service] }
+    { 10  ;   ;Sync State          ;BLOB          ;Compressed=No }
+    { 11  ;   ;Sync Is Running     ;Boolean       ;Editable=No }
+    { 12  ;   ;Last Synced         ;DateTime      ;Editable=No }
+    { 13  ;   ;Total Items         ;Integer        }
+    { 14  ;   ;Unread Items        ;Integer        }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      ExchangeAccountNotConfiguredErr@1000000001 : TextConst 'ENU=The Exchange account is not configured.;NLD=Het Exchange-account is niet geconfigureerd.';
+
+    PROCEDURE AutodiscoverUrl@1000000001();
+    VAR
+      ExchangeWSManagement@1000000000 : Codeunit 60020;
+    BEGIN
+      ExchangeWSManagement.AutodiscoverUrl(Rec);
+    END;
+
+    PROCEDURE RefreshTotals@1000000008();
+    VAR
+      ExchangeWSManagement@1000000000 : Codeunit 60020;
+    BEGIN
+      ExchangeWSManagement.RefreshTotals(Rec);
+    END;
+
+    PROCEDURE Synchronize@1000000005();
+    VAR
+      ExchangeWSManagement@1000000000 : Codeunit 60020;
+    BEGIN
+      ExchangeWSManagement.SynchronizeInbox(Rec);
+    END;
+
+    PROCEDURE SetPassword@4(PasswordText@1001 : Text);
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF ISNULLGUID("Exchange Account Password Key") OR NOT ServicePassword.GET("Exchange Account Password Key") THEN BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.INSERT(TRUE);
+        "Exchange Account Password Key" := ServicePassword.Key;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.MODIFY;
+      END;
+    END;
+
+    PROCEDURE GetCredentials@1000000000(VAR WebCredentials@1000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.WebCredentials");
+    VAR
+      ServicePassword@1001 : Record 1261;
+    BEGIN
+      IF "Exchange Account User Name" = '' THEN
+        ERROR(ExchangeAccountNotConfiguredErr);
+      IF ISNULLGUID("Exchange Account Password Key") OR NOT ServicePassword.GET("Exchange Account Password Key") THEN
+        ERROR(ExchangeAccountNotConfiguredErr);
+
+      WebCredentials := WebCredentials.WebCredentials("Exchange Account User Name",ServicePassword.GetPassword);
+    END;
+
+    PROCEDURE ResetSyncState@1000000006();
+    BEGIN
+      SetSyncState('');
+      MODIFY;
+    END;
+
+    PROCEDURE SetSyncState@1000000002(value@1000000000 : Text);
+    VAR
+      OutStr@1000000001 : OutStream;
+    BEGIN
+      CLEAR("Sync State");
+
+      IF value <> '' THEN BEGIN
+        "Sync State".CREATEOUTSTREAM(OutStr);
+        OutStr.WRITETEXT(value);
+      END;
+
+      IF value <> '' THEN
+        "Last Synced" := CURRENTDATETIME
+      ELSE
+        "Last Synced" := 0DT;
+    END;
+
+    PROCEDURE GetSyncState@1000000003() value : Text;
+    VAR
+      InStr@1000000000 : InStream;
+    BEGIN
+      IF "Sync State".HASVALUE THEN BEGIN
+        CALCFIELDS("Sync State");
+        "Sync State".CREATEINSTREAM(InStr);
+        InStr.READTEXT(value);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Table 60021 EWS Mail Item
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnDelete=VAR
+               EWSAttachment@1000000000 : Record 60022;
+             BEGIN
+               EWSAttachment.SETRANGE(MailItemId,ItemId);
+               EWSAttachment.DELETEALL();
+             END;
+
+  }
+  FIELDS
+  {
+    { 1   ;   ;ItemId              ;Text250        }
+    { 3   ;   ;ChangeKey           ;Text250        }
+    { 4   ;   ;From                ;Text250        }
+    { 5   ;   ;ToRecipients        ;Text250       ;CaptionML=ENU=To }
+    { 6   ;   ;CcRecipients        ;Text250       ;CaptionML=ENU=Cc }
+    { 7   ;   ;Received At         ;DateTime       }
+    { 8   ;   ;Subject             ;Text250        }
+    { 9   ;   ;Attachment          ;Boolean        }
+    { 20  ;   ;Body                ;BLOB           }
+  }
+  KEYS
+  {
+    {    ;ItemId                                  ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE SetBody@1000000002(value@1000000000 : Text);
+    VAR
+      OutStr@1000000001 : OutStream;
+    BEGIN
+      CLEAR(Body);
+
+      IF value <> '' THEN BEGIN
+        Body.CREATEOUTSTREAM(OutStr);
+        OutStr.WRITETEXT(value);
+      END;
+    END;
+
+    PROCEDURE GetBody@1000000003() value : Text;
+    VAR
+      InStr@1000000000 : InStream;
+    BEGIN
+      IF Body.HASVALUE THEN BEGIN
+        CALCFIELDS(Body);
+        Body.CREATEINSTREAM(InStr);
+        InStr.READTEXT(value);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Table 60022 EWS Attachment
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;MailItemId          ;Text250        }
+    { 2   ;   ;ContentId           ;Text197        }
+    { 3   ;   ;AttachmentId        ;Text250        }
+    { 4   ;   ;Name                ;Text250        }
+    { 5   ;   ;Size                ;Integer        }
+    { 6   ;   ;Content             ;BLOB           }
+  }
+  KEYS
+  {
+    {    ;MailItemId,ContentId                    ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE SetContent@1000000002(VAR value@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array");
+    VAR
+      MemoryStream@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      OutStr@1000000001 : OutStream;
+    BEGIN
+      MemoryStream := MemoryStream.MemoryStream(value);
+
+      CLEAR(Content);
+      Content.CREATEOUTSTREAM(OutStr);
+      MemoryStream.WriteTo(OutStr);
+    END;
+
+    PROCEDURE OpenAttachment@1000000000();
+    VAR
+      InStr@1000000000 : InStream;
+    BEGIN
+      IF NOT Content.HASVALUE THEN
+        EXIT;
+
+      CALCFIELDS(Content);
+      Content.CREATEINSTREAM(InStr);
+      DOWNLOADFROMSTREAM(InStr,'','','',Name);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 60020 Exchange WS Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      WellKnownFolderName@1000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.WellKnownFolderName";
+      ChangeType@1001 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ChangeType";
+      ConflictResolutionMode@1002 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ConflictResolutionMode";
+      null@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      Object@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      Text000@1000000005 : TextConst 'ENU=Trying to connect to Exchange...';
+      Text001@1000000003 : TextConst 'ENU=Connection to Exchange was succesfully established.';
+      Text002@1000000002 : TextConst 'ENU=Unable to connect to Exchange.;NLD=Automatische detectie van Exchange service is mislukt.';
+      Progress@1000000004 : Dialog;
+
+    PROCEDURE AutodiscoverUrl@1000000002(VAR EWSSetup@1000000000 : Record 60020);
+    BEGIN
+      Progress.OPEN(Text000);
+
+      IF TryAutodiscoverUrl(EWSSetup) THEN
+        MESSAGE(Text001)
+      ELSE
+        ERROR(Text002 + '\' + GETLASTERRORTEXT);
+
+      Progress.CLOSE;
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE TryAutodiscoverUrl@1000000004(VAR EWSSetup@1000000001 : Record 60020);
+    VAR
+      NAVExchangeServiceBase@1000000002 : DotNet "'Microsoft.Dynamics.Nav.EwsWrapper, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Exchange.NavExchangeServiceBase";
+      ServicePassword@1000000000 : Record 1261;
+    BEGIN
+      WITH EWSSetup DO BEGIN
+        ServicePassword.GET("Exchange Account Password Key");
+        NAVExchangeServiceBase := NAVExchangeServiceBase.NavExchangeServiceBase("Exchange Account User Name","Exchange Account User Name",ServicePassword.GetPassword);
+        "Exchange Service URL" := NAVExchangeServiceBase.ExchangeServiceUrlString;
+        MODIFY;
+      END;
+    END;
+
+    PROCEDURE RefreshTotals@2(VAR EWSSetup@1000000000 : Record 60020) : Integer;
+    VAR
+      ExchangeService@1003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ExchangeService";
+      WebCredentials@1005 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.WebCredentials";
+      Uri@1006 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+      Folder@1007 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.Folder";
+    BEGIN
+      IF EWSSetup."Exchange Service URL" = '' THEN
+        EXIT;
+
+      ExchangeService := ExchangeService.ExchangeService();
+      EWSSetup.GetCredentials(WebCredentials);
+      ExchangeService.Credentials := WebCredentials;
+      ExchangeService.Url := Uri.Uri(EWSSetup."Exchange Service URL");
+      Folder := Folder.Bind(ExchangeService,WellKnownFolderName.Inbox);
+
+      EWSSetup."Unread Items" := Folder.UnreadCount;
+      EWSSetup."Total Items" := Folder.TotalCount;
+      EWSSetup.MODIFY;
+    END;
+
+    PROCEDURE SynchronizeInbox@1(VAR EWSSetup@1000000008 : Record 60020);
+    VAR
+      ExchangeService@1004 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ExchangeService";
+      ExchangeCredentials@1003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ExchangeCredentials";
+      WebCredentials@1002 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.WebCredentials";
+      Uri@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+      Folder@1000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.Folder";
+      ItemChange@1007 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ItemChange";
+      EmailMessage@1008 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.EmailMessage";
+      PropertySet@1000000002 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertySet";
+      BasePropertySet@1000000003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.BasePropertySet";
+      SyncFolderItemsScope@1000000004 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.SyncFolderItemsScope";
+      ChangeCollection@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.IEnumerable";
+      Type@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Type";
+      BindingFlags@1000000005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Reflection.BindingFlags";
+      ReflectionBinder@1000000007 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Reflection.Binder";
+      Args@1000000006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.List`1";
+      Progress@1000000009 : Dialog;
+      Counter@1000000010 : Integer;
+      TotalCount@1000000011 : Integer;
+    BEGIN
+      IF EWSSetup."Exchange Service URL" = '' THEN
+        EXIT;
+
+      ExchangeService := ExchangeService.ExchangeService();
+      EWSSetup.GetCredentials(WebCredentials);
+      ExchangeService.Credentials := WebCredentials;
+      ExchangeService.Url := Uri.Uri(EWSSetup."Exchange Service URL");
+      Folder := Folder.Bind(ExchangeService,WellKnownFolderName.Inbox);
+
+      PropertySet := PropertySet.PropertySet(BasePropertySet.FirstClassProperties);
+      Args := Args.List;
+      Args.Add(Folder.Id);
+      Args.Add(PropertySet);
+      Args.Add(null);
+      Args.Add(512);
+      Args.Add(SyncFolderItemsScope.NormalItems);
+      Args.Add(EWSSetup.GetSyncState);
+
+      Type := GETDOTNETTYPE(ExchangeService);
+      ChangeCollection := Type.InvokeMember('SyncFolderItems',BindingFlags.InvokeMethod,ReflectionBinder,ExchangeService,Args.ToArray);
+      TotalCount := CountIEnumerable(ChangeCollection);
+
+      Progress.OPEN('@1@@@@@@@@@@@@@@@@');
+
+      FOREACH ItemChange IN ChangeCollection DO BEGIN
+        Counter += 1;
+        Progress.UPDATE(1,ROUND(Counter / TotalCount * 10000,1));
+        CASE ItemChange.ChangeType.ToString() OF
+          ChangeType.Create.ToString():
+            BEGIN
+              IF ItemChange.Item.GetType.Equals(GETDOTNETTYPE(EmailMessage)) THEN BEGIN
+                BindEmailMessage(ExchangeService,ItemChange.ItemId,EmailMessage);
+                InsertEmailMessage(EmailMessage);
+              END;
+            END;
+          ChangeType.Update.ToString():
+            BEGIN
+            END;
+          ChangeType.Delete.ToString():
+            BEGIN
+            END;
+          ChangeType.ReadFlagChange.ToString():
+            BEGIN
+            END;
+        END;
+      END;
+
+      Progress.CLOSE;
+
+      Object := ChangeCollection;
+      Type := Object.GetType;
+      EWSSetup.SetSyncState(Type.GetProperty('SyncState').GetValue(Object));
+      EWSSetup.MODIFY;
+    END;
+
+    LOCAL PROCEDURE BindEmailMessage@1000000012(ExchangeService@1000000000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ExchangeService";ItemId@1000000001 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ItemId";VAR EmailMessage@1000000011 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.EmailMessage");
+    VAR
+      PropertySet@1000000003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertySet";
+      BasePropertySet@1000000002 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.BasePropertySet";
+      PropertyDefinitionBase@1000000009 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertyDefinitionBase";
+      ItemSchema@1000000004 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ItemSchema";
+      ItemSchemaTextBody@1000000006 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertyDefinition";
+      ItemSchemaAttachments@1000000007 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertyDefinition";
+      AdditionalProperties@1000000008 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      BodyType@1000000010 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.BodyType";
+      Type@1000000005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Type";
+    BEGIN
+      Type := GETDOTNETTYPE(ItemSchema);
+      ItemSchemaTextBody := Type.GetField('TextBody').GetValue(null);
+      ItemSchemaAttachments := Type.GetField('Attachments').GetValue(null);
+      AdditionalProperties := AdditionalProperties.CreateInstance(GETDOTNETTYPE(PropertyDefinitionBase),2);
+      AdditionalProperties.SetValue(ItemSchemaTextBody,0);
+      AdditionalProperties.SetValue(ItemSchemaAttachments,1);
+
+      PropertySet := PropertySet.PropertySet(BasePropertySet.FirstClassProperties,AdditionalProperties);
+      PropertySet.RequestedBodyType := BodyType.Text;
+      EmailMessage := EmailMessage.Bind(ExchangeService,ItemId,PropertySet);
+    END;
+
+    LOCAL PROCEDURE InsertEmailMessage@11(VAR EmailMessage@1000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.EmailMessage");
+    VAR
+      Attachment@1004 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.Attachment";
+      FileAttachment@1003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.FileAttachment";
+      EWSMailItem@1001 : Record 60021;
+      EWSAttachment@1002 : Record 60022;
+      ByteArray@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Subject@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.String";
+      sb@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.StringBuilder";
+      EmailAddress@1007 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.EmailAddress";
+    BEGIN
+      IF NOT EWSMailItem.GET(EmailMessage.Id.UniqueId) THEN BEGIN
+        EWSMailItem.INIT;
+        EWSMailItem.ItemId := EmailMessage.Id.UniqueId;
+        EWSMailItem.INSERT;
+      END;
+
+      EWSMailItem.ChangeKey := EmailMessage.Id.ChangeKey;
+      EWSMailItem.From := COPYSTR(EmailMessage.From.Address,1,MAXSTRLEN(EWSMailItem.From));
+
+      sb := sb.StringBuilder;
+      FOREACH EmailAddress IN EmailMessage.ToRecipients DO BEGIN
+        IF sb.Length > 0 THEN
+          sb.Append(';');
+        sb.Append(EmailAddress.Address);
+      END;
+      EWSMailItem.ToRecipients := COPYSTR(sb.ToString,1,MAXSTRLEN(EWSMailItem.ToRecipients));
+
+      sb := sb.StringBuilder;
+      FOREACH EmailAddress IN EmailMessage.CcRecipients DO BEGIN
+        IF sb.Length > 0 THEN
+          sb.Append(';');
+        sb.Append(EmailAddress.Address);
+      END;
+      EWSMailItem.CcRecipients := COPYSTR(sb.ToString,1,MAXSTRLEN(EWSMailItem.CcRecipients));
+
+      EWSMailItem."Received At" := EmailMessage.DateTimeReceived;
+      Subject := EmailMessage.Subject;
+      IF (NOT Subject.IsNullOrEmpty(Subject)) THEN BEGIN
+        sb := sb.StringBuilder(Subject.ToString);
+        EWSMailItem.Subject := COPYSTR(EmailMessage.Subject,1,MAXSTRLEN(EWSMailItem.Subject));
+      END;
+
+      EWSMailItem.Attachment := EmailMessage.HasAttachments;
+      EWSMailItem.SetBody(EmailMessage.TextBody.Text);
+      EWSMailItem.MODIFY;
+      COMMIT;
+
+      IF EmailMessage.HasAttachments THEN
+        FOREACH Attachment IN EmailMessage.Attachments DO BEGIN
+          IF (NOT Attachment.IsInline) AND (Attachment.GetType().Equals(GETDOTNETTYPE(FileAttachment))) THEN BEGIN
+            FileAttachment := Attachment;
+            FileAttachment.Load();
+
+            IF NOT EWSAttachment.GET(EWSMailItem.ItemId,FileAttachment.ContentId) THEN BEGIN
+              EWSAttachment.INIT;
+              EWSAttachment.MailItemId := EWSMailItem.ItemId;
+              EWSAttachment.ContentId := FileAttachment.ContentId;
+              EWSAttachment.INSERT;
+            END;
+
+            EWSAttachment.AttachmentId := FileAttachment.Id;
+            EWSAttachment.Name := FileAttachment.Name;
+            EWSAttachment.Size := FileAttachment.Size;
+            ByteArray := FileAttachment.Content;
+            EWSAttachment.SetContent(ByteArray);
+            EWSAttachment.MODIFY;
+          END;
+        END;
+
+      IF EmailMessage.IsReadReceiptRequested THEN
+        EmailMessage.SuppressReadReceipt();
+      EmailMessage.IsRead := TRUE;
+      EmailMessage.Update(ConflictResolutionMode.AutoResolve);
+    END;
+
+    LOCAL PROCEDURE CountIEnumerable@1000000001(IEnumerable@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.IEnumerable") value : Integer;
+    VAR
+      Item@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+    BEGIN
+      FOREACH Item IN IEnumerable DO
+        value += 1;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 60020 Exchange Inbox
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table60020;
+    DataCaptionExpr="Exchange Account User Name";
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    ActionList=ACTIONS
+    {
+      { 1000000007;  ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 1000000016;1 ;Action    ;
+                      Name=Setup;
+                      RunObject=Page 60021;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Setup;
+                      PromotedCategory=New }
+      { 1000000003;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1000000001;1 ;Action    ;
+                      Name=StartAutoSync;
+                      CaptionML=ENU=Start Automatic Synchronization;
+                      Promoted=Yes;
+                      Enabled=NOT AutoSync;
+                      PromotedIsBig=Yes;
+                      Image=Start;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 AutoSync := TRUE;
+                                 StartPingPong;
+                               END;
+                                }
+      { 1000000002;1 ;Action    ;
+                      Name=StopAutoSync;
+                      CaptionML=ENU=Stop Automatic Synchronization;
+                      Promoted=Yes;
+                      Enabled=AutoSync;
+                      PromotedIsBig=Yes;
+                      Image=Stop;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 AutoSync := FALSE;
+                                 StartPingPong;
+                               END;
+                                }
+      { 1000000008;1 ;Action    ;
+                      Name=SynchronizeInbox;
+                      CaptionML=ENU=Manually Synchronize Inbox;
+                      Promoted=Yes;
+                      Enabled=NOT AutoSync;
+                      PromotedIsBig=Yes;
+                      Image=Refresh;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Synchronize;
+                                 RefreshTotals;
+                                 CurrPage.UPDATE(FALSE);
+                                 StartPingPong;
+                               END;
+                                }
+      { 1000000009;1 ;Action    ;
+                      Name=ClearSyncState;
+                      CaptionML=ENU=Clear Synchronization State;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ClearLog;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ResetSyncState;
+                                 CurrPage.UPDATE(FALSE);
+                                 StartPingPong;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000015;1;Field  ;
+                Name=PingPong;
+                ControlAddIn=[Microsoft.Dynamics.Nav.Client.PingPong;PublicKeyToken=31bf3856ad364e35] }
+
+    { 1000000005;1;Group  ;
+                CaptionML=ENU=Synchronization;
+                GroupType=Group }
+
+    { 1000000004;2;Field  ;
+                CaptionML=ENU=Last Synced;
+                SourceExpr=FORMAT("Last Synced",0,'<Day,2>-<Month,2>-<Year4> <Hours24,2>:<Minutes,2>:<Seconds,2>') }
+
+    { 1000000006;1;Part   ;
+                PagePartID=Page60022;
+                PartType=Page }
+
+    { 1000000014;1;Group  ;
+                CaptionML=ENU=Totals;
+                GroupType=CueGroup }
+
+    { 1000000013;2;Field  ;
+                CaptionML=ENU=Total Items;
+                SourceExpr="Total Items";
+                Editable=false }
+
+    { 1000000012;2;Field  ;
+                CaptionML=ENU=Unread Items;
+                SourceExpr="Unread Items";
+                Editable=false }
+
+    { 1000000011;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1000000010;1;Part   ;
+                SubPageLink=MailItemId=FIELD(ItemId);
+                PagePartID=Page60023;
+                ProviderID=1000000006;
+                PartType=Page }
+
+  }
+  CODE
+  {
+    VAR
+      AutoSync@1001 : Boolean;
+
+    LOCAL PROCEDURE StartPingPong@1000000004();
+    BEGIN
+      CurrPage.PingPong.Ping(3000);
+    END;
+
+    LOCAL PROCEDURE HandlePingPong@1000000001();
+    BEGIN
+      IF AutoSync THEN
+        Synchronize;
+      RefreshTotals;
+      CurrPage.UPDATE(FALSE);
+      StartPingPong;
+    END;
+
+    EVENT PingPong@-1000000015::AddInReady@2();
+    BEGIN
+      StartPingPong;
+    END;
+
+    EVENT PingPong@-1000000015::Pong@3();
+    BEGIN
+      HandlePingPong;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 60021 Exchange Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table60020;
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       ExchangeAccountPasswordTemp := '';
+                       IF ("Exchange Account User Name" <> '') AND (NOT ISNULLGUID("Exchange Account Password Key")) THEN
+                         ExchangeAccountPasswordTemp := '**********';
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           PageIsEditable := CurrPage.EDITABLE;
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1000000003;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1000000006;1 ;Action    ;
+                      Name=ValidateSettings;
+                      CaptionML=ENU=Validate Settings;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ValidateEmailLoggingSetup;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 AutodiscoverUrl();
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Group     ;
+                GroupType=Group }
+
+    { 1000000002;3;Field  ;
+                SourceExpr="Exchange Account User Name" }
+
+    { 1000000005;3;Field  ;
+                ExtendedDatatype=Masked;
+                CaptionML=[ENU=Exchange Account Password;
+                           NLD=Wachtwoord Exchange-account];
+                SourceExpr=ExchangeAccountPasswordTemp;
+                Editable=PageIsEditable;
+                OnValidate=BEGIN
+                             SetPassword(ExchangeAccountPasswordTemp);
+                             COMMIT;
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 1000000004;3;Field  ;
+                SourceExpr="Exchange Service URL" }
+
+  }
+  CODE
+  {
+    VAR
+      ExchangeAccountPasswordTemp@1000000000 : Text;
+      EWSManagement@1000000002 : Codeunit 60020;
+      PageIsEditable@1000000001 : Boolean;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 60022 Exchange Inbox Items
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table60021;
+    SourceTableView=SORTING(Received At)
+                    ORDER(Descending);
+    PageType=ListPart;
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="Received At" }
+
+    { 1000000002;2;Field  ;
+                SourceExpr=From }
+
+    { 1000000003;2;Field  ;
+                SourceExpr=ToRecipients;
+                Visible=FALSE }
+
+    { 1000000004;2;Field  ;
+                SourceExpr=CcRecipients;
+                Visible=FALSE }
+
+    { 1000000006;2;Field  ;
+                SourceExpr=Subject }
+
+    { 1000000007;2;Field  ;
+                SourceExpr=Attachment }
+
+    { 1000000009;1;Group  ;
+                CaptionML=ENU=Body;
+                GroupType=Group }
+
+    { 1000000010;2;Group  ;
+                GroupType=GridLayout;
+                Layout=Rows }
+
+    { 1000000011;3;Group  ;
+                GroupType=Group }
+
+    { 1000000008;4;Field  ;
+                Name=Body;
+                CaptionML=ENU=Body;
+                SourceExpr=GetBody;
+                MultiLine=Yes;
+                ShowCaption=No }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 60023 Exchange Inbot Attachments
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table60022;
+    PageType=ListPart;
+    ActionList=ACTIONS
+    {
+      { 1000000004;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1000000005;1 ;Action    ;
+                      CaptionML=ENU=Open;
+                      Image=ExportFile;
+                      OnAction=BEGIN
+                                 OpenAttachment();
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr=Name }
+
+    { 1000000003;2;Field  ;
+                CaptionML=ENU=Size (KB);
+                DecimalPlaces=0:0;
+                SourceExpr=ROUND(Size/1024,1,'=') }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

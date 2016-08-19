@@ -1,0 +1,74 @@
+OBJECT Page 60022 Exchange Inbox Items
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table60021;
+    SourceTableView=SORTING(Received At)
+                    ORDER(Descending);
+    PageType=ListPart;
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="Received At" }
+
+    { 1000000002;2;Field  ;
+                SourceExpr=From }
+
+    { 1000000003;2;Field  ;
+                SourceExpr=ToRecipients;
+                Visible=FALSE }
+
+    { 1000000004;2;Field  ;
+                SourceExpr=CcRecipients;
+                Visible=FALSE }
+
+    { 1000000006;2;Field  ;
+                SourceExpr=Subject }
+
+    { 1000000007;2;Field  ;
+                SourceExpr=Attachment }
+
+    { 1000000009;1;Group  ;
+                CaptionML=ENU=Body;
+                GroupType=Group }
+
+    { 1000000010;2;Group  ;
+                GroupType=GridLayout;
+                Layout=Rows }
+
+    { 1000000011;3;Group  ;
+                GroupType=Group }
+
+    { 1000000008;4;Field  ;
+                Name=Body;
+                CaptionML=ENU=Body;
+                SourceExpr=GetBody;
+                MultiLine=Yes;
+                ShowCaption=No }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

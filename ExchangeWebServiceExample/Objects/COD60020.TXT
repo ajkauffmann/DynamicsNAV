@@ -1,0 +1,264 @@
+OBJECT Codeunit 60020 Exchange WS Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      WellKnownFolderName@1000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.WellKnownFolderName";
+      ChangeType@1001 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ChangeType";
+      ConflictResolutionMode@1002 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ConflictResolutionMode";
+      null@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      Object@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      Text000@1000000005 : TextConst 'ENU=Trying to connect to Exchange...';
+      Text001@1000000003 : TextConst 'ENU=Connection to Exchange was succesfully established.';
+      Text002@1000000002 : TextConst 'ENU=Unable to connect to Exchange.;NLD=Automatische detectie van Exchange service is mislukt.';
+      Progress@1000000004 : Dialog;
+
+    PROCEDURE AutodiscoverUrl@1000000002(VAR EWSSetup@1000000000 : Record 60020);
+    BEGIN
+      Progress.OPEN(Text000);
+
+      IF TryAutodiscoverUrl(EWSSetup) THEN
+        MESSAGE(Text001)
+      ELSE
+        ERROR(Text002 + '\' + GETLASTERRORTEXT);
+
+      Progress.CLOSE;
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE TryAutodiscoverUrl@1000000004(VAR EWSSetup@1000000001 : Record 60020);
+    VAR
+      NAVExchangeServiceBase@1000000002 : DotNet "'Microsoft.Dynamics.Nav.EwsWrapper, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Exchange.NavExchangeServiceBase";
+      ServicePassword@1000000000 : Record 1261;
+    BEGIN
+      WITH EWSSetup DO BEGIN
+        ServicePassword.GET("Exchange Account Password Key");
+        NAVExchangeServiceBase := NAVExchangeServiceBase.NavExchangeServiceBase("Exchange Account User Name","Exchange Account User Name",ServicePassword.GetPassword);
+        "Exchange Service URL" := NAVExchangeServiceBase.ExchangeServiceUrlString;
+        MODIFY;
+      END;
+    END;
+
+    PROCEDURE RefreshTotals@2(VAR EWSSetup@1000000000 : Record 60020) : Integer;
+    VAR
+      ExchangeService@1003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ExchangeService";
+      WebCredentials@1005 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.WebCredentials";
+      Uri@1006 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+      Folder@1007 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.Folder";
+    BEGIN
+      IF EWSSetup."Exchange Service URL" = '' THEN
+        EXIT;
+
+      ExchangeService := ExchangeService.ExchangeService();
+      EWSSetup.GetCredentials(WebCredentials);
+      ExchangeService.Credentials := WebCredentials;
+      ExchangeService.Url := Uri.Uri(EWSSetup."Exchange Service URL");
+      Folder := Folder.Bind(ExchangeService,WellKnownFolderName.Inbox);
+
+      EWSSetup."Unread Items" := Folder.UnreadCount;
+      EWSSetup."Total Items" := Folder.TotalCount;
+      EWSSetup.MODIFY;
+    END;
+
+    PROCEDURE SynchronizeInbox@1(VAR EWSSetup@1000000008 : Record 60020);
+    VAR
+      ExchangeService@1004 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ExchangeService";
+      ExchangeCredentials@1003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ExchangeCredentials";
+      WebCredentials@1002 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.WebCredentials";
+      Uri@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+      Folder@1000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.Folder";
+      ItemChange@1007 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ItemChange";
+      EmailMessage@1008 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.EmailMessage";
+      PropertySet@1000000002 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertySet";
+      BasePropertySet@1000000003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.BasePropertySet";
+      SyncFolderItemsScope@1000000004 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.SyncFolderItemsScope";
+      ChangeCollection@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.IEnumerable";
+      Type@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Type";
+      BindingFlags@1000000005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Reflection.BindingFlags";
+      ReflectionBinder@1000000007 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Reflection.Binder";
+      Args@1000000006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.List`1";
+      Progress@1000000009 : Dialog;
+      Counter@1000000010 : Integer;
+      TotalCount@1000000011 : Integer;
+    BEGIN
+      IF EWSSetup."Exchange Service URL" = '' THEN
+        EXIT;
+
+      ExchangeService := ExchangeService.ExchangeService();
+      EWSSetup.GetCredentials(WebCredentials);
+      ExchangeService.Credentials := WebCredentials;
+      ExchangeService.Url := Uri.Uri(EWSSetup."Exchange Service URL");
+      Folder := Folder.Bind(ExchangeService,WellKnownFolderName.Inbox);
+
+      PropertySet := PropertySet.PropertySet(BasePropertySet.FirstClassProperties);
+      Args := Args.List;
+      Args.Add(Folder.Id);
+      Args.Add(PropertySet);
+      Args.Add(null);
+      Args.Add(512);
+      Args.Add(SyncFolderItemsScope.NormalItems);
+      Args.Add(EWSSetup.GetSyncState);
+
+      Type := GETDOTNETTYPE(ExchangeService);
+      ChangeCollection := Type.InvokeMember('SyncFolderItems',BindingFlags.InvokeMethod,ReflectionBinder,ExchangeService,Args.ToArray);
+      TotalCount := CountIEnumerable(ChangeCollection);
+
+      Progress.OPEN('@1@@@@@@@@@@@@@@@@');
+
+      FOREACH ItemChange IN ChangeCollection DO BEGIN
+        Counter += 1;
+        Progress.UPDATE(1,ROUND(Counter / TotalCount * 10000,1));
+        CASE ItemChange.ChangeType.ToString() OF
+          ChangeType.Create.ToString():
+            BEGIN
+              IF ItemChange.Item.GetType.Equals(GETDOTNETTYPE(EmailMessage)) THEN BEGIN
+                BindEmailMessage(ExchangeService,ItemChange.ItemId,EmailMessage);
+                InsertEmailMessage(EmailMessage);
+              END;
+            END;
+          ChangeType.Update.ToString():
+            BEGIN
+            END;
+          ChangeType.Delete.ToString():
+            BEGIN
+            END;
+          ChangeType.ReadFlagChange.ToString():
+            BEGIN
+            END;
+        END;
+      END;
+
+      Progress.CLOSE;
+
+      Object := ChangeCollection;
+      Type := Object.GetType;
+      EWSSetup.SetSyncState(Type.GetProperty('SyncState').GetValue(Object));
+      EWSSetup.MODIFY;
+    END;
+
+    LOCAL PROCEDURE BindEmailMessage@1000000012(ExchangeService@1000000000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ExchangeService";ItemId@1000000001 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ItemId";VAR EmailMessage@1000000011 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.EmailMessage");
+    VAR
+      PropertySet@1000000003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertySet";
+      BasePropertySet@1000000002 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.BasePropertySet";
+      PropertyDefinitionBase@1000000009 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertyDefinitionBase";
+      ItemSchema@1000000004 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.ItemSchema";
+      ItemSchemaTextBody@1000000006 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertyDefinition";
+      ItemSchemaAttachments@1000000007 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.PropertyDefinition";
+      AdditionalProperties@1000000008 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      BodyType@1000000010 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.BodyType";
+      Type@1000000005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Type";
+    BEGIN
+      Type := GETDOTNETTYPE(ItemSchema);
+      ItemSchemaTextBody := Type.GetField('TextBody').GetValue(null);
+      ItemSchemaAttachments := Type.GetField('Attachments').GetValue(null);
+      AdditionalProperties := AdditionalProperties.CreateInstance(GETDOTNETTYPE(PropertyDefinitionBase),2);
+      AdditionalProperties.SetValue(ItemSchemaTextBody,0);
+      AdditionalProperties.SetValue(ItemSchemaAttachments,1);
+
+      PropertySet := PropertySet.PropertySet(BasePropertySet.FirstClassProperties,AdditionalProperties);
+      PropertySet.RequestedBodyType := BodyType.Text;
+      EmailMessage := EmailMessage.Bind(ExchangeService,ItemId,PropertySet);
+    END;
+
+    LOCAL PROCEDURE InsertEmailMessage@11(VAR EmailMessage@1000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.EmailMessage");
+    VAR
+      Attachment@1004 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.Attachment";
+      FileAttachment@1003 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.FileAttachment";
+      EWSMailItem@1001 : Record 60021;
+      EWSAttachment@1002 : Record 60022;
+      ByteArray@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Subject@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.String";
+      sb@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.StringBuilder";
+      EmailAddress@1007 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.EmailAddress";
+    BEGIN
+      IF NOT EWSMailItem.GET(EmailMessage.Id.UniqueId) THEN BEGIN
+        EWSMailItem.INIT;
+        EWSMailItem.ItemId := EmailMessage.Id.UniqueId;
+        EWSMailItem.INSERT;
+      END;
+
+      EWSMailItem.ChangeKey := EmailMessage.Id.ChangeKey;
+      EWSMailItem.From := COPYSTR(EmailMessage.From.Address,1,MAXSTRLEN(EWSMailItem.From));
+
+      sb := sb.StringBuilder;
+      FOREACH EmailAddress IN EmailMessage.ToRecipients DO BEGIN
+        IF sb.Length > 0 THEN
+          sb.Append(';');
+        sb.Append(EmailAddress.Address);
+      END;
+      EWSMailItem.ToRecipients := COPYSTR(sb.ToString,1,MAXSTRLEN(EWSMailItem.ToRecipients));
+
+      sb := sb.StringBuilder;
+      FOREACH EmailAddress IN EmailMessage.CcRecipients DO BEGIN
+        IF sb.Length > 0 THEN
+          sb.Append(';');
+        sb.Append(EmailAddress.Address);
+      END;
+      EWSMailItem.CcRecipients := COPYSTR(sb.ToString,1,MAXSTRLEN(EWSMailItem.CcRecipients));
+
+      EWSMailItem."Received At" := EmailMessage.DateTimeReceived;
+      Subject := EmailMessage.Subject;
+      IF (NOT Subject.IsNullOrEmpty(Subject)) THEN BEGIN
+        sb := sb.StringBuilder(Subject.ToString);
+        EWSMailItem.Subject := COPYSTR(EmailMessage.Subject,1,MAXSTRLEN(EWSMailItem.Subject));
+      END;
+
+      EWSMailItem.Attachment := EmailMessage.HasAttachments;
+      EWSMailItem.SetBody(EmailMessage.TextBody.Text);
+      EWSMailItem.MODIFY;
+      COMMIT;
+
+      IF EmailMessage.HasAttachments THEN
+        FOREACH Attachment IN EmailMessage.Attachments DO BEGIN
+          IF (NOT Attachment.IsInline) AND (Attachment.GetType().Equals(GETDOTNETTYPE(FileAttachment))) THEN BEGIN
+            FileAttachment := Attachment;
+            FileAttachment.Load();
+
+            IF NOT EWSAttachment.GET(EWSMailItem.ItemId,FileAttachment.ContentId) THEN BEGIN
+              EWSAttachment.INIT;
+              EWSAttachment.MailItemId := EWSMailItem.ItemId;
+              EWSAttachment.ContentId := FileAttachment.ContentId;
+              EWSAttachment.INSERT;
+            END;
+
+            EWSAttachment.AttachmentId := FileAttachment.Id;
+            EWSAttachment.Name := FileAttachment.Name;
+            EWSAttachment.Size := FileAttachment.Size;
+            ByteArray := FileAttachment.Content;
+            EWSAttachment.SetContent(ByteArray);
+            EWSAttachment.MODIFY;
+          END;
+        END;
+
+      IF EmailMessage.IsReadReceiptRequested THEN
+        EmailMessage.SuppressReadReceipt();
+      EmailMessage.IsRead := TRUE;
+      EmailMessage.Update(ConflictResolutionMode.AutoResolve);
+    END;
+
+    LOCAL PROCEDURE CountIEnumerable@1000000001(IEnumerable@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.IEnumerable") value : Integer;
+    VAR
+      Item@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+    BEGIN
+      FOREACH Item IN IEnumerable DO
+        value += 1;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

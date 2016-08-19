@@ -1,0 +1,54 @@
+OBJECT Page 60023 Exchange Inbot Attachments
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table60022;
+    PageType=ListPart;
+    ActionList=ACTIONS
+    {
+      { 1000000004;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1000000005;1 ;Action    ;
+                      CaptionML=ENU=Open;
+                      Image=ExportFile;
+                      OnAction=BEGIN
+                                 OpenAttachment();
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr=Name }
+
+    { 1000000003;2;Field  ;
+                CaptionML=ENU=Size (KB);
+                DecimalPlaces=0:0;
+                SourceExpr=ROUND(Size/1024,1,'=') }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

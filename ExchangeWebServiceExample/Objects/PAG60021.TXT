@@ -1,0 +1,94 @@
+OBJECT Page 60021 Exchange Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table60020;
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       ExchangeAccountPasswordTemp := '';
+                       IF ("Exchange Account User Name" <> '') AND (NOT ISNULLGUID("Exchange Account Password Key")) THEN
+                         ExchangeAccountPasswordTemp := '**********';
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           PageIsEditable := CurrPage.EDITABLE;
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1000000003;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1000000006;1 ;Action    ;
+                      Name=ValidateSettings;
+                      CaptionML=ENU=Validate Settings;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ValidateEmailLoggingSetup;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 AutodiscoverUrl();
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Group     ;
+                GroupType=Group }
+
+    { 1000000002;3;Field  ;
+                SourceExpr="Exchange Account User Name" }
+
+    { 1000000005;3;Field  ;
+                ExtendedDatatype=Masked;
+                CaptionML=[ENU=Exchange Account Password;
+                           NLD=Wachtwoord Exchange-account];
+                SourceExpr=ExchangeAccountPasswordTemp;
+                Editable=PageIsEditable;
+                OnValidate=BEGIN
+                             SetPassword(ExchangeAccountPasswordTemp);
+                             COMMIT;
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 1000000004;3;Field  ;
+                SourceExpr="Exchange Service URL" }
+
+  }
+  CODE
+  {
+    VAR
+      ExchangeAccountPasswordTemp@1000000000 : Text;
+      EWSManagement@1000000002 : Codeunit 60020;
+      PageIsEditable@1000000001 : Boolean;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,69 @@
+OBJECT Table 60021 EWS Mail Item
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnDelete=VAR
+               EWSAttachment@1000000000 : Record 60022;
+             BEGIN
+               EWSAttachment.SETRANGE(MailItemId,ItemId);
+               EWSAttachment.DELETEALL();
+             END;
+
+  }
+  FIELDS
+  {
+    { 1   ;   ;ItemId              ;Text250        }
+    { 3   ;   ;ChangeKey           ;Text250        }
+    { 4   ;   ;From                ;Text250        }
+    { 5   ;   ;ToRecipients        ;Text250       ;CaptionML=ENU=To }
+    { 6   ;   ;CcRecipients        ;Text250       ;CaptionML=ENU=Cc }
+    { 7   ;   ;Received At         ;DateTime       }
+    { 8   ;   ;Subject             ;Text250        }
+    { 9   ;   ;Attachment          ;Boolean        }
+    { 20  ;   ;Body                ;BLOB           }
+  }
+  KEYS
+  {
+    {    ;ItemId                                  ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE SetBody@1000000002(value@1000000000 : Text);
+    VAR
+      OutStr@1000000001 : OutStream;
+    BEGIN
+      CLEAR(Body);
+
+      IF value <> '' THEN BEGIN
+        Body.CREATEOUTSTREAM(OutStr);
+        OutStr.WRITETEXT(value);
+      END;
+    END;
+
+    PROCEDURE GetBody@1000000003() value : Text;
+    VAR
+      InStr@1000000000 : InStream;
+    BEGIN
+      IF Body.HASVALUE THEN BEGIN
+        CALCFIELDS(Body);
+        Body.CREATEINSTREAM(InStr);
+        InStr.READTEXT(value);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

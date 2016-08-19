@@ -1,0 +1,60 @@
+OBJECT Table 60022 EWS Attachment
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;MailItemId          ;Text250        }
+    { 2   ;   ;ContentId           ;Text197        }
+    { 3   ;   ;AttachmentId        ;Text250        }
+    { 4   ;   ;Name                ;Text250        }
+    { 5   ;   ;Size                ;Integer        }
+    { 6   ;   ;Content             ;BLOB           }
+  }
+  KEYS
+  {
+    {    ;MailItemId,ContentId                    ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE SetContent@1000000002(VAR value@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array");
+    VAR
+      MemoryStream@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      OutStr@1000000001 : OutStream;
+    BEGIN
+      MemoryStream := MemoryStream.MemoryStream(value);
+
+      CLEAR(Content);
+      Content.CREATEOUTSTREAM(OutStr);
+      MemoryStream.WriteTo(OutStr);
+    END;
+
+    PROCEDURE OpenAttachment@1000000000();
+    VAR
+      InStr@1000000000 : InStream;
+    BEGIN
+      IF NOT Content.HASVALUE THEN
+        EXIT;
+
+      CALCFIELDS(Content);
+      Content.CREATEINSTREAM(InStr);
+      DOWNLOADFROMSTREAM(InStr,'','','',Name);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

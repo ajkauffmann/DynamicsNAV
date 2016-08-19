@@ -1,0 +1,135 @@
+OBJECT Table 60020 EWS Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=19-08-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 1261=rimd;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Primary Key         ;Code10         }
+    { 3   ;   ;Exchange Account User Name;Text250 ;OnValidate=BEGIN
+                                                                "Exchange Service URL" := '';
+                                                                SetSyncState('');
+                                                              END;
+
+                                                   CaptionML=[ENU=Exchange Account User Name;
+                                                              NLD=Gebruikersnaam Exchange-account] }
+    { 4   ;   ;Exchange Account Password Key;GUID ;OnValidate=BEGIN
+                                                                "Exchange Service URL" := '';
+                                                              END;
+
+                                                   CaptionML=[ENU=Exchange Account Password Key;
+                                                              NLD=Wachtwoordsleutel Exchange-account] }
+    { 9   ;   ;Exchange Service URL;Text250       ;CaptionML=[ENU=Exchange Service URL;
+                                                              NLD=URL Exchange-service] }
+    { 10  ;   ;Sync State          ;BLOB          ;Compressed=No }
+    { 11  ;   ;Sync Is Running     ;Boolean       ;Editable=No }
+    { 12  ;   ;Last Synced         ;DateTime      ;Editable=No }
+    { 13  ;   ;Total Items         ;Integer        }
+    { 14  ;   ;Unread Items        ;Integer        }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      ExchangeAccountNotConfiguredErr@1000000001 : TextConst 'ENU=The Exchange account is not configured.;NLD=Het Exchange-account is niet geconfigureerd.';
+
+    PROCEDURE AutodiscoverUrl@1000000001();
+    VAR
+      ExchangeWSManagement@1000000000 : Codeunit 60020;
+    BEGIN
+      ExchangeWSManagement.AutodiscoverUrl(Rec);
+    END;
+
+    PROCEDURE RefreshTotals@1000000008();
+    VAR
+      ExchangeWSManagement@1000000000 : Codeunit 60020;
+    BEGIN
+      ExchangeWSManagement.RefreshTotals(Rec);
+    END;
+
+    PROCEDURE Synchronize@1000000005();
+    VAR
+      ExchangeWSManagement@1000000000 : Codeunit 60020;
+    BEGIN
+      ExchangeWSManagement.SynchronizeInbox(Rec);
+    END;
+
+    PROCEDURE SetPassword@4(PasswordText@1001 : Text);
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF ISNULLGUID("Exchange Account Password Key") OR NOT ServicePassword.GET("Exchange Account Password Key") THEN BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.INSERT(TRUE);
+        "Exchange Account Password Key" := ServicePassword.Key;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.MODIFY;
+      END;
+    END;
+
+    PROCEDURE GetCredentials@1000000000(VAR WebCredentials@1000 : DotNet "'Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Exchange.WebServices.Data.WebCredentials");
+    VAR
+      ServicePassword@1001 : Record 1261;
+    BEGIN
+      IF "Exchange Account User Name" = '' THEN
+        ERROR(ExchangeAccountNotConfiguredErr);
+      IF ISNULLGUID("Exchange Account Password Key") OR NOT ServicePassword.GET("Exchange Account Password Key") THEN
+        ERROR(ExchangeAccountNotConfiguredErr);
+
+      WebCredentials := WebCredentials.WebCredentials("Exchange Account User Name",ServicePassword.GetPassword);
+    END;
+
+    PROCEDURE ResetSyncState@1000000006();
+    BEGIN
+      SetSyncState('');
+      MODIFY;
+    END;
+
+    PROCEDURE SetSyncState@1000000002(value@1000000000 : Text);
+    VAR
+      OutStr@1000000001 : OutStream;
+    BEGIN
+      CLEAR("Sync State");
+
+      IF value <> '' THEN BEGIN
+        "Sync State".CREATEOUTSTREAM(OutStr);
+        OutStr.WRITETEXT(value);
+      END;
+
+      IF value <> '' THEN
+        "Last Synced" := CURRENTDATETIME
+      ELSE
+        "Last Synced" := 0DT;
+    END;
+
+    PROCEDURE GetSyncState@1000000003() value : Text;
+    VAR
+      InStr@1000000000 : InStream;
+    BEGIN
+      IF "Sync State".HASVALUE THEN BEGIN
+        CALCFIELDS("Sync State");
+        "Sync State".CREATEINSTREAM(InStr);
+        InStr.READTEXT(value);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
