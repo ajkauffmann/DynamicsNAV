@@ -137,7 +137,7 @@ OBJECT Table 60021 EWS Mail Item
 {
   OBJECT-PROPERTIES
   {
-    Date=19-08-16;
+    Date=31-08-16;
     Time=12:00:00;
     Modified=Yes;
     Version List=WebService-Example;
@@ -182,7 +182,7 @@ OBJECT Table 60021 EWS Mail Item
 
       IF value <> '' THEN BEGIN
         Body.CREATEOUTSTREAM(OutStr);
-        OutStr.WRITETEXT(value);
+        OutStr.WRITE(value);
       END;
     END;
 
@@ -193,7 +193,7 @@ OBJECT Table 60021 EWS Mail Item
       IF Body.HASVALUE THEN BEGIN
         CALCFIELDS(Body);
         Body.CREATEINSTREAM(InStr);
-        InStr.READTEXT(value);
+        InStr.READ(value);
       END;
     END;
 
