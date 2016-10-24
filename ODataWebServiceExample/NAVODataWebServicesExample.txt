@@ -1,0 +1,438 @@
+OBJECT Codeunit 60000 REST WS Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=22-10-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    [TryFunction]
+    PROCEDURE CallRESTWebService@1000000002(VAR Parameters@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";VAR HttpResponseMessage@1000 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage");
+    VAR
+      HttpContent@1001 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpContent";
+      HttpClient@1000000003 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpClient";
+      AuthHeaderValue@1004 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.AuthenticationHeaderValue";
+      Uri@1000000002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+      bytes@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Encoding@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      Convert@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+    BEGIN
+      HttpClient := HttpClient.HttpClient();
+      HttpClient.BaseAddress := Uri.Uri(FORMAT(Parameters.Item('baseurl')));
+
+      IF Parameters.ContainsKey('accept') THEN
+        HttpClient.DefaultRequestHeaders.Add('Accept',FORMAT(Parameters.Item('accept')));
+
+      IF Parameters.ContainsKey('username') THEN BEGIN
+        bytes := Encoding.ASCII.GetBytes(STRSUBSTNO('%1:%2',FORMAT(Parameters.Item('username')),FORMAT(Parameters.Item('password'))));
+        AuthHeaderValue := AuthHeaderValue.AuthenticationHeaderValue('Basic',Convert.ToBase64String(bytes));
+        HttpClient.DefaultRequestHeaders.Authorization := AuthHeaderValue;
+      END;
+
+      IF Parameters.ContainsKey('httpcontent') THEN
+        HttpContent := Parameters.Item('httpcontent');
+
+      CASE FORMAT(Parameters.Item('restmethod')) OF
+        'GET':    HttpResponseMessage := HttpClient.GetAsync(FORMAT(Parameters.Item('path'))).Result;
+        'POST':   HttpResponseMessage := HttpClient.PostAsync(FORMAT(Parameters.Item('path')),HttpContent).Result;
+        'PUT':    HttpResponseMessage := HttpClient.PutAsync(FORMAT(Parameters.Item('path')),HttpContent).Result;
+        'DELETE': HttpResponseMessage := HttpClient.DeleteAsync(FORMAT(Parameters.Item('path'))).Result;
+      END;
+
+      HttpResponseMessage.EnsureSuccessStatusCode(); // Throws an error when no success
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 60001 Json Helper Functions
+{
+  OBJECT-PROPERTIES
+  {
+    Date=22-10-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE GetValueAsText@2(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Text;
+    BEGIN
+      ReturnValue := JObject.GetValue(PropertyName).ToString;
+    END;
+
+    PROCEDURE GetValueAsInteger@8(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Integer;
+    VAR
+      DotNetInteger@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Int32";
+    BEGIN
+      ReturnValue := DotNetInteger.Parse(JObject.GetValue(PropertyName).ToString);
+    END;
+
+    PROCEDURE GetValueAsDecimal@3(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Decimal;
+    VAR
+      DotNetDecimal@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Decimal";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      ReturnValue := DotNetDecimal.Parse(JObject.GetValue(PropertyName).ToString,CultureInfo.InvariantCulture);
+    END;
+
+    PROCEDURE GetValueAsDate@5(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Date;
+    VAR
+      DotNetDateTime@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DT2DATE(DotNetDateTime);
+    END;
+
+    PROCEDURE GetValueAsTime@4(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Time;
+    VAR
+      DotNetDateTime@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DT2TIME(DotNetDateTime);
+    END;
+
+    PROCEDURE GetValueAsDateTime@6(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : DateTime;
+    VAR
+      DotNetDateTime@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DotNetDateTime;
+    END;
+
+    PROCEDURE GetValueAsBoolean@7(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Boolean;
+    VAR
+      DotNetBoolean@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Boolean";
+    BEGIN
+      ReturnValue := DotNetBoolean.Parse(JObject.GetValue(PropertyName).ToString);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 72000 NAV WS Read Demo
+{
+  OBJECT-PROPERTIES
+  {
+    Date=22-10-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+            BaseUrl := 'http://MYNAV:8048/';
+            NAVServerInstance := 'DynamicsNAV90_WS';
+            WSCompanyName := 'CRONUS International Ltd.';
+
+            TestJsonValues;
+            GetItemList;
+            GetSalesOrder;
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      BaseUrl@1001 : Text;
+      WSCompanyName@1000 : Text;
+      NAVServerInstance@1002 : Text;
+
+    LOCAL PROCEDURE TestJsonValues@1();
+    VAR
+      Parameters@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      RESTWSManagement@1003 : Codeunit 60000;
+      HttpResponseMessage@1002 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      null@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      JsonConvert@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.JsonConvert";
+      JArray@1005 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      JObject@1004 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JToken@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+      result@1000 : Text;
+      JsonHelperFunctions@1008 : Codeunit 60001;
+    BEGIN
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',BaseUrl);
+      Parameters.Add('path',GetODataPath('TestJsonValues'));
+      Parameters.Add('restmethod','GET');
+      Parameters.Add('accept','application/json');
+      Parameters.Add('username',GetUserName);
+      Parameters.Add('password',GetPassword);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+
+      JToken := JToken.Parse(result);
+      JArray := JToken.SelectToken('value');
+
+      JObject := JArray.First;
+      MESSAGE('%1\\' +
+              'TextValue:     %2\' +
+              'IntegerValue:  %3\' +
+              'DecimalValue:  %4\' +
+              'DateValue:     %5\' +
+              'TimeValue:     %6\' +
+              'DateTimeValue: %7\' +
+              'BooleanValue:  %8',
+              result,
+              JsonHelperFunctions.GetValueAsText(JObject,'TextValue'),
+              JsonHelperFunctions.GetValueAsInteger(JObject,'IntegerValue'),
+              JsonHelperFunctions.GetValueAsDecimal(JObject,'DecimalValue'),
+              JsonHelperFunctions.GetValueAsDate(JObject,'DateValue'),
+              JsonHelperFunctions.GetValueAsTime(JObject,'TimeValue'),
+              JsonHelperFunctions.GetValueAsDateTime(JObject,'DateTimeValue'),
+              JsonHelperFunctions.GetValueAsBoolean(JObject,'BooleanValue'));
+    END;
+
+    LOCAL PROCEDURE GetItemList@2();
+    VAR
+      Parameters@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      RESTWSManagement@1003 : Codeunit 60000;
+      HttpResponseMessage@1002 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      null@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      JsonConvert@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.JsonConvert";
+      JArray@1005 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      JObject@1004 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JToken@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+      ItemList@1008 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      Item@1009 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      result@1000 : Text;
+      TempItem@1010 : TEMPORARY Record 27;
+    BEGIN
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',BaseUrl);
+      Parameters.Add('path',GetODataPath('ItemList'));
+      Parameters.Add('restmethod','GET');
+      Parameters.Add('accept','application/json');
+      Parameters.Add('username',GetUserName);
+      Parameters.Add('password',GetPassword);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+
+      JToken := JToken.Parse(result);
+      ItemList := JToken.SelectToken('value');
+
+      FOREACH Item IN ItemList DO BEGIN
+        TempItem.INIT;
+        TempItem."No." := Item.GetValue('No').ToString;
+        TempItem.Description := Item.GetValue('Description').ToString;
+        TempItem.INSERT;
+      END;
+
+      TempItem.FIND('-');
+      PAGE.RUN(0,TempItem);
+    END;
+
+    LOCAL PROCEDURE GetSalesOrder@4();
+    VAR
+      Parameters@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      RESTWSManagement@1003 : Codeunit 60000;
+      HttpResponseMessage@1002 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      null@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      JsonConvert@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.JsonConvert";
+      JArray@1005 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      JObject@1004 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JToken@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+      SalesOrderList@1008 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      SalesOrder@1009 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JsonHelperFunctions@1012 : Codeunit 60001;
+      result@1000 : Text;
+    BEGIN
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',BaseUrl);
+      Parameters.Add('path',GetODataPath('SalesOrder') + '?$filter=Sell_to_Customer_No eq ''10000''');
+      Parameters.Add('restmethod','GET');
+      Parameters.Add('accept','application/json');
+      Parameters.Add('username',GetUserName);
+      Parameters.Add('password',GetPassword);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+
+      JToken := JToken.Parse(result);
+      SalesOrderList := JToken.SelectToken('value');
+
+      FOREACH SalesOrder IN SalesOrderList DO BEGIN
+        MESSAGE('%1',JsonHelperFunctions.GetValueAsText(SalesOrder,'No'));
+        GetSalesOrderLine(JsonHelperFunctions.GetValueAsText(SalesOrder,'No'));
+      END;
+    END;
+
+    LOCAL PROCEDURE GetSalesOrderLine@6(SalesOrderNo@1012 : Code[20]);
+    VAR
+      Parameters@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      RESTWSManagement@1003 : Codeunit 60000;
+      HttpResponseMessage@1002 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      null@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      JsonConvert@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.JsonConvert";
+      JArray@1005 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      JObject@1004 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JToken@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+      SalesOrderLineList@1008 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      SalesOrderLine@1009 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JsonHelperFunctions@1010 : Codeunit 60001;
+      result@1000 : Text;
+    BEGIN
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',BaseUrl);
+      Parameters.Add('path',GetODataPath('SalesOrder') + '(Document_Type=''Order'',No=''' + SalesOrderNo + ''')/SalesOrderSalesLines');
+      Parameters.Add('restmethod','GET');
+      Parameters.Add('accept','application/json');
+      Parameters.Add('username',GetUserName);
+      Parameters.Add('password',GetPassword);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+
+      JToken := JToken.Parse(result);
+      SalesOrderLineList := JToken.SelectToken('value');
+
+      FOREACH SalesOrderLine IN SalesOrderLineList DO BEGIN
+        MESSAGE('Item: %1\' +
+                'Description: %2\' +
+                'Quantity: %3\' +
+                'Amount: %4',
+                JsonHelperFunctions.GetValueAsText(SalesOrderLine,'No'),
+                JsonHelperFunctions.GetValueAsText(SalesOrderLine,'Description'),
+                JsonHelperFunctions.GetValueAsDecimal(SalesOrderLine,'Quantity'),
+                JsonHelperFunctions.GetValueAsDecimal(SalesOrderLine,'Line_Amount'));
+      END;
+    END;
+
+    LOCAL PROCEDURE GetUserName@17() : Text;
+    BEGIN
+      EXIT('WEBSERVICE');
+    END;
+
+    LOCAL PROCEDURE GetPassword@18() : Text;
+    BEGIN
+      EXIT('xz46L9GuM7M57Q4FBYVoFMN+Yc2JZiVg60mfUPApaxw=');
+    END;
+
+    LOCAL PROCEDURE GetODataPath@9(WSMethod@1000 : Text) ReturnValue : Text;
+    BEGIN
+      ReturnValue := STRSUBSTNO('%1/OData/Company(''%2'')/%3',
+                                NAVServerInstance,
+                                URLPathEncode(WSCompanyName),
+                                WSMethod);
+    END;
+
+    LOCAL PROCEDURE URLPathEncode@3(Value@1000 : Text) ReturnValue : Text;
+    VAR
+      HttpUtility@1001 : DotNet "'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Web.HttpUtility";
+    BEGIN
+      ReturnValue := HttpUtility.UrlPathEncode(Value);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 72000 Test Json Values
+{
+  OBJECT-PROPERTIES
+  {
+    Date=22-10-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table2000000026;
+    SourceTableView=WHERE(Number=CONST(1));
+    OnOpenPage=BEGIN
+                 TextValue := 'This is an test web service';
+                 IntegerValue := ROUND(RANDOM(10000),1);
+                 DecimalValue := RANDOM(100000000) / RANDOM(1000);
+                 DateValue := WORKDATE;
+                 TimeValue := TIME;
+                 DateTimeValue := CURRENTDATETIME;
+                 BooleanValue := TRUE;
+               END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;    ;Container ;
+                ContainerType=ContentArea }
+
+    { 9   ;1   ;Group     ;
+                GroupType=Group }
+
+    { 2   ;2   ;Field     ;
+                Name=TextValue;
+                SourceExpr=TextValue }
+
+    { 3   ;2   ;Field     ;
+                Name=IntegerValue;
+                SourceExpr=IntegerValue }
+
+    { 4   ;2   ;Field     ;
+                Name=DecimalValue;
+                SourceExpr=DecimalValue }
+
+    { 5   ;2   ;Field     ;
+                Name=DateValue;
+                SourceExpr=DateValue }
+
+    { 6   ;2   ;Field     ;
+                Name=TimeValue;
+                SourceExpr=TimeValue }
+
+    { 7   ;2   ;Field     ;
+                Name=DateTimeValue;
+                SourceExpr=DateTimeValue }
+
+    { 8   ;2   ;Field     ;
+                Name=BooleanValue;
+                SourceExpr=BooleanValue }
+
+  }
+  CODE
+  {
+    VAR
+      TextValue@1000 : Text INDATASET;
+      IntegerValue@1001 : Integer INDATASET;
+      DecimalValue@1002 : Decimal;
+      DateValue@1003 : Date;
+      TimeValue@1004 : Time;
+      DateTimeValue@1005 : DateTime;
+      BooleanValue@1006 : Boolean INDATASET;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,59 @@
+OBJECT Codeunit 60000 REST WS Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=22-10-16;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    [TryFunction]
+    PROCEDURE CallRESTWebService@1000000002(VAR Parameters@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";VAR HttpResponseMessage@1000 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage");
+    VAR
+      HttpContent@1001 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpContent";
+      HttpClient@1000000003 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpClient";
+      AuthHeaderValue@1004 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.AuthenticationHeaderValue";
+      Uri@1000000002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+      bytes@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Encoding@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      Convert@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+    BEGIN
+      HttpClient := HttpClient.HttpClient();
+      HttpClient.BaseAddress := Uri.Uri(FORMAT(Parameters.Item('baseurl')));
+
+      IF Parameters.ContainsKey('accept') THEN
+        HttpClient.DefaultRequestHeaders.Add('Accept',FORMAT(Parameters.Item('accept')));
+
+      IF Parameters.ContainsKey('username') THEN BEGIN
+        bytes := Encoding.ASCII.GetBytes(STRSUBSTNO('%1:%2',FORMAT(Parameters.Item('username')),FORMAT(Parameters.Item('password'))));
+        AuthHeaderValue := AuthHeaderValue.AuthenticationHeaderValue('Basic',Convert.ToBase64String(bytes));
+        HttpClient.DefaultRequestHeaders.Authorization := AuthHeaderValue;
+      END;
+
+      IF Parameters.ContainsKey('httpcontent') THEN
+        HttpContent := Parameters.Item('httpcontent');
+
+      CASE FORMAT(Parameters.Item('restmethod')) OF
+        'GET':    HttpResponseMessage := HttpClient.GetAsync(FORMAT(Parameters.Item('path'))).Result;
+        'POST':   HttpResponseMessage := HttpClient.PostAsync(FORMAT(Parameters.Item('path')),HttpContent).Result;
+        'PUT':    HttpResponseMessage := HttpClient.PutAsync(FORMAT(Parameters.Item('path')),HttpContent).Result;
+        'DELETE': HttpResponseMessage := HttpClient.DeleteAsync(FORMAT(Parameters.Item('path'))).Result;
+      END;
+
+      HttpResponseMessage.EnsureSuccessStatusCode(); // Throws an error when no success
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
