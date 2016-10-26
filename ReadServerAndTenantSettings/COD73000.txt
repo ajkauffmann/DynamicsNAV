@@ -1,0 +1,59 @@
+OBJECT Codeunit 73000 Get NAV Database Info
+{
+  OBJECT-PROPERTIES
+  {
+    Date=26-10-16;
+    Time=23:10:39;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            NavTenantRuntimeSettings@1000000000 : DotNet "'Microsoft.Dynamics.Nav.Types, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Types.NavTenantRuntimeSettings";
+          BEGIN
+            MESSAGE('SQL Server: %1\' +
+                    'SQL Server Instance: %2\' +
+                    'Database name: %3',
+                    GetServerSetting('DatabaseServer'),
+                    GetServerSetting('DatabaseInstance'),
+                    GetServerSetting('DatabaseName'));
+
+            GetTenantSettings(NavTenantRuntimeSettings);
+            MESSAGE('Tenant SQL Server: %1\' +
+                    'Tenant SQL Server Instance: %2\' +
+                    'Tenant Database name: %3',
+                    NavTenantRuntimeSettings.DatabaseServer,
+                    NavTenantRuntimeSettings.ServerInstance,
+                    NavTenantRuntimeSettings.DatabaseName);
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ConfigurationSettingsProvider@1000000011 : DotNet "'Microsoft.Dynamics.Nav.Types, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Types.ConfigurationSettingsProvider";
+
+    LOCAL PROCEDURE GetServerSetting@1000000017(SettingName@1000000000 : Text) ReturnValue : Text;
+    BEGIN
+      IF ISNULL(ConfigurationSettingsProvider) THEN
+        ConfigurationSettingsProvider := ConfigurationSettingsProvider.ConfigurationSettingsProvider('');
+
+      ConfigurationSettingsProvider.TryGetConfigurationSettingValue(SettingName,ReturnValue);
+    END;
+
+    LOCAL PROCEDURE GetTenantSettings@1000000022(VAR NavTenantRuntimeSettings@1000000002 : DotNet "'Microsoft.Dynamics.Nav.Types, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Types.NavTenantRuntimeSettings");
+    VAR
+      NavTenantManagementTasks@1000000000 : DotNet "'Microsoft.Dynamics.Nav.Ncl, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Runtime.NavTenantManagementTasks";
+      TenantList@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.List`1";
+    BEGIN
+      NavTenantManagementTasks := NavTenantManagementTasks.NavTenantManagementTasks();
+      TenantList := NavTenantManagementTasks.GetTenants(TENANTID);
+      NavTenantRuntimeSettings := TenantList.Item(0);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
