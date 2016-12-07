@@ -1,0 +1,256 @@
+OBJECT Codeunit 72001 NAV WS Write Demo
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07-12-16;
+    Time=02:18:35;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            OrderNo@1000 : Code[20];
+          BEGIN
+            Initialize();
+            CreateNewSalesOrder(OrderNo);
+            CreateNewSalesLine(OrderNo);
+            UpdateSalesOrder(OrderNo);
+            DeleteSalesOrder(OrderNo);
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      BaseUrl@1001 : Text;
+      WSCompanyName@1000 : Text;
+      NAVServerInstance@1002 : Text;
+      JsonHelperFunctions@1003 : Codeunit 60001;
+
+    LOCAL PROCEDURE CreateNewSalesOrder@26(VAR OrderNo@1012 : Code[20]);
+    VAR
+      Parameters@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      JObject@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JTokenWriter@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JTokenWriter";
+      JsonFormatting@1010 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Formatting";
+      StringContent@1005 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.StringContent";
+      Encoding@1004 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      HttpResponseMessage@1003 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      JsonConvert@1008 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.JsonConvert";
+      RESTWSManagement@1002 : Codeunit 60000;
+      result@1000 : Text;
+      json@1011 : Text;
+    BEGIN
+      JTokenWriter := JTokenWriter.JTokenWriter;
+      WITH JTokenWriter DO BEGIN
+        WriteStartObject;
+        WritePropertyName('Sell_to_Customer_No');
+        WriteValue('46251425');
+        WriteEndObject;
+        JObject := Token;
+      END;
+
+      json := JObject.ToString;
+
+      StringContent := StringContent.StringContent(json,Encoding.UTF8,'application/json');
+
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',BaseUrl);
+      Parameters.Add('path',GetODataPath('SalesOrder'));
+      Parameters.Add('restmethod','POST');
+      Parameters.Add('accept','application/json');
+      Parameters.Add('username',GetUserName);
+      Parameters.Add('password',GetPassword);
+      Parameters.Add('httpcontent',StringContent);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+
+      JObject := JObject.Parse(result);
+      OrderNo := JsonHelperFunctions.GetValueAsText(JObject,'No');
+      MESSAGE('Sales Order %1 has been created',OrderNo);
+    END;
+
+    LOCAL PROCEDURE CreateNewSalesLine@7(OrderNo@1009 : Code[20]);
+    VAR
+      Parameters@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      JObject@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JTokenWriter@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JTokenWriter";
+      JsonFormatting@1010 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Formatting";
+      StringContent@1005 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.StringContent";
+      Encoding@1004 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      HttpResponseMessage@1003 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      RESTWSManagement@1002 : Codeunit 60000;
+      result@1000 : Text;
+      json@1011 : Text;
+    BEGIN
+      JTokenWriter := JTokenWriter.JTokenWriter;
+      WITH JTokenWriter DO BEGIN
+        WriteStartObject;
+        WritePropertyName('Type');
+        WriteValue('Item');
+        WritePropertyName('No');
+        WriteValue('1000');
+        WritePropertyName('Quantity');
+        WriteValue(FORMAT(5,0,9));
+        WritePropertyName('Requested_Delivery_Date');
+        WriteValue(FORMAT(011216D,0,9));
+        WriteEndObject;
+        JObject := Token;
+      END;
+
+      json := JObject.ToString;
+      StringContent := StringContent.StringContent(json,Encoding.UTF8,'application/json');
+
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',BaseUrl);
+      Parameters.Add('path',GetODataPath('SalesOrder(Document_Type=''Order'',No=''' + OrderNo + ''')/SalesOrderSalesLines'));
+      Parameters.Add('restmethod','POST');
+      Parameters.Add('accept','application/json');
+      Parameters.Add('username',GetUserName);
+      Parameters.Add('password',GetPassword);
+      Parameters.Add('httpcontent',StringContent);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+
+      JObject := JObject.Parse(result);
+
+      MESSAGE('Sales Line created with Line Amount: %1',JsonHelperFunctions.GetValueAsDecimal(JObject,'Line_Amount'));
+    END;
+
+    LOCAL PROCEDURE UpdateSalesOrder@4(Orderno@1012 : Code[20]);
+    VAR
+      Parameters@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      JToken@1015 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+      JObject@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JTokenWriter@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JTokenWriter";
+      StringContent@1005 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.StringContent";
+      Encoding@1004 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      HttpResponseMessage@1003 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      ETag@1013 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.EntityTagHeaderValue";
+      RESTWSManagement@1002 : Codeunit 60000;
+      NAVWSReadDemo@1014 : Codeunit 72000;
+      result@1000 : Text;
+      json@1011 : Text;
+    BEGIN
+      json := NAVWSReadDemo.GetSalesOrder(Orderno,ETag);
+
+      //Alternatively, get ETag from json:
+      //GetETagFromJson(json,ETag);
+
+      JTokenWriter := JTokenWriter.JTokenWriter;
+      WITH JTokenWriter DO BEGIN
+        WriteStartObject;
+        WritePropertyName('External_Document_No');
+        WriteValue('PO0192837465');
+        WriteEndObject;
+        JObject := Token;
+      END;
+
+      json := JObject.ToString;
+      StringContent := StringContent.StringContent(json,Encoding.UTF8,'application/json');
+
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',BaseUrl);
+      Parameters.Add('path',GetODataPath('SalesOrder(Document_Type=''Order'',No=''' + Orderno + ''')'));
+      Parameters.Add('restmethod','PATCH');
+      Parameters.Add('accept','application/json');
+      Parameters.Add('username',GetUserName);
+      Parameters.Add('password',GetPassword);
+      Parameters.Add('httpcontent',StringContent);
+      Parameters.Add('etag',ETag);
+
+      IF NOT RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage) THEN BEGIN
+        result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+        IF JsonHelperFunctions.TryParse(result,JToken) THEN
+          MESSAGE(JsonHelperFunctions.GetODataErrorMessage(JToken))
+        ELSE
+          MESSAGE('An error as occurred during the web service call.\\%1\\%2',HttpResponseMessage.StatusCode,result);
+      END;
+    END;
+
+    LOCAL PROCEDURE DeleteSalesOrder@8(Orderno@1012 : Code[20]);
+    VAR
+      Parameters@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      JToken@1004 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+      HttpResponseMessage@1003 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      ETag@1013 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.EntityTagHeaderValue";
+      RESTWSManagement@1002 : Codeunit 60000;
+      NAVWSReadDemo@1014 : Codeunit 72000;
+      result@1000 : Text;
+    BEGIN
+      result := NAVWSReadDemo.GetSalesOrder(Orderno,ETag);
+
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',BaseUrl);
+      Parameters.Add('path',GetODataPath('SalesOrder(Document_Type=''Order'',No=''' + Orderno + ''')'));
+      Parameters.Add('restmethod','DELETE');
+      Parameters.Add('accept','application/json');
+      Parameters.Add('username',GetUserName);
+      Parameters.Add('password',GetPassword);
+      Parameters.Add('etag',ETag);
+
+      IF NOT RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage) THEN BEGIN
+        result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+        IF JsonHelperFunctions.TryParse(result,JToken) THEN
+          MESSAGE(JsonHelperFunctions.GetODataErrorMessage(JToken))
+        ELSE
+          MESSAGE('An error as occurred during the web service call.\\%1\\%2',HttpResponseMessage.StatusCode,result);
+      END;
+    END;
+
+    LOCAL PROCEDURE Initialize@2();
+    BEGIN
+      BaseUrl := 'http://MYNAV:8048/';
+      NAVServerInstance := 'DynamicsNAV90_WS';
+      WSCompanyName := 'CRONUS International Ltd.';
+    END;
+
+    LOCAL PROCEDURE GetUserName@17() : Text;
+    BEGIN
+      EXIT('WEBSERVICE');
+    END;
+
+    LOCAL PROCEDURE GetPassword@18() : Text;
+    BEGIN
+      EXIT('xz46L9GuM7M57Q4FBYVoFMN+Yc2JZiVg60mfUPApaxw=');
+    END;
+
+    LOCAL PROCEDURE GetODataPath@9(WSMethod@1000 : Text) ReturnValue : Text;
+    BEGIN
+      ReturnValue := STRSUBSTNO('%1/OData/Company(''%2'')/%3',
+                                NAVServerInstance,
+                                UrlPathEncode(WSCompanyName),
+                                WSMethod);
+    END;
+
+    LOCAL PROCEDURE UrlPathEncode@3(Value@1000 : Text) ReturnValue : Text;
+    VAR
+      HttpUtility@1001 : DotNet "'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Web.HttpUtility";
+    BEGIN
+      ReturnValue := HttpUtility.UrlPathEncode(Value);
+    END;
+
+    LOCAL PROCEDURE EscapeDataString@1(Value@1000 : Text) ReturnValue : Text;
+    VAR
+      HttpUtility@1001 : DotNet "'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Web.HttpUtility";
+      Uri@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+    BEGIN
+      ReturnValue := Uri.EscapeDataString(Value);
+    END;
+
+    LOCAL PROCEDURE GetETagFromJson@25(json@1001 : Text;VAR ETag@1000 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.EntityTagHeaderValue");
+    VAR
+      JToken@1002 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+    BEGIN
+      IF JsonHelperFunctions.TryParse(json,JToken) THEN
+        ETag := ETag.EntityTagHeaderValue(STRSUBSTNO('"''%1''"',EscapeDataString(JsonHelperFunctions.GetValueAsText(JToken,'ETag'))),TRUE);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

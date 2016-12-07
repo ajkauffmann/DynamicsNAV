@@ -2,8 +2,8 @@ OBJECT Codeunit 60001 Json Helper Functions
 {
   OBJECT-PROPERTIES
   {
-    Date=22-10-16;
-    Time=12:00:00;
+    Date=11-11-16;
+    Time=20:52:56;
     Modified=Yes;
     Version List=WebService-Example;
   }
@@ -68,6 +68,20 @@ OBJECT Codeunit 60001 Json Helper Functions
       DotNetBoolean@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Boolean";
     BEGIN
       ReturnValue := DotNetBoolean.Parse(JObject.GetValue(PropertyName).ToString);
+    END;
+
+    PROCEDURE GetODataErrorMessage@9(ErrorObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken") ReturnValue : Text;
+    VAR
+      JToken@1001 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+    BEGIN
+      JToken := ErrorObject.SelectToken('$.[''odata.error''].[''message'']');
+      ReturnValue := GetValueAsText(JToken,'value');
+    END;
+
+    [TryFunction]
+    PROCEDURE TryParse@1(json@1000 : Text;VAR JToken@1002 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken");
+    BEGIN
+      JToken := JToken.Parse(json);
     END;
 
     BEGIN
