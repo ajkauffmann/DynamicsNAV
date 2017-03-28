@@ -1,0 +1,172 @@
+OBJECT Codeunit 71000 PrintNode Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ServerSaveAsPdfFailedErr@1000 : TextConst 'ENU=Cannot open the document because it is empty or cannot be created.';
+
+    PROCEDURE Refresh@5();
+    BEGIN
+      RefreshComputers();
+      RefreshPrinters();
+    END;
+
+    LOCAL PROCEDURE RefreshComputers@1();
+    VAR
+      Parameters@1009 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      PrintNodeComputer@1000 : Record 71001;
+      RESTWSManagement@1005 : Codeunit 60000;
+      JsonHelperFunctions@1010 : Codeunit 60001;
+      HttpResponseMessage@1004 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      JArray@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      JObject@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      result@1002 : Text;
+    BEGIN
+      PrintNodeComputer.DELETEALL;
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',APIBaseUrl);
+      Parameters.Add('path','computers');
+      Parameters.Add('restmethod','GET');
+      Parameters.Add('username',GetAPIKey);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+      JsonHelperFunctions.TryParse(result,JArray);
+
+      FOREACH JObject IN JArray DO BEGIN
+        PrintNodeComputer.INIT;
+        PrintNodeComputer.Id := JsonHelperFunctions.GetValueAsInteger(JObject,'id');
+        PrintNodeComputer.Name := JsonHelperFunctions.GetValueAsText(JObject,'name');
+        PrintNodeComputer.Hostname := JsonHelperFunctions.GetValueAsText(JObject,'hostname');
+        PrintNodeComputer.State := JsonHelperFunctions.GetValueAsText(JObject,'state');
+        PrintNodeComputer.INSERT;
+      END;
+    END;
+
+    LOCAL PROCEDURE RefreshPrinters@2();
+    VAR
+      Parameters@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      PrintNodePrinter@1008 : Record 71002;
+      RESTWSManagement@1007 : Codeunit 60000;
+      JsonHelperFunctions@1012 : Codeunit 60001;
+      HttpResponseMessage@1006 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      JArray@1003 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      JObject@1002 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JObjectComputer@1009 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      result@1000 : Text;
+    BEGIN
+      PrintNodePrinter.DELETEALL;
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',APIBaseUrl);
+      Parameters.Add('path','printers');
+      Parameters.Add('restmethod','GET');
+      Parameters.Add('username',GetAPIKey);
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+      JsonHelperFunctions.TryParse(result,JArray);
+
+      FOREACH JObject IN JArray DO BEGIN
+        PrintNodePrinter.INIT;
+        PrintNodePrinter.Id := JsonHelperFunctions.GetValueAsInteger(JObject,'id');
+        JObjectComputer := JObject.GetValue('computer');
+        PrintNodePrinter.Computer := JsonHelperFunctions.GetValueAsText(JObjectComputer,'name');
+        PrintNodePrinter.Name := JsonHelperFunctions.GetValueAsText(JObject,'name');
+        PrintNodePrinter.State := JsonHelperFunctions.GetValueAsText(JObject,'state');
+        PrintNodePrinter.INSERT;
+      END;
+    END;
+
+    PROCEDURE NewPrintJob@7(PrinterId@1000 : Integer;MemStream@1015 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";Filename@1001 : Text) : Text;
+    VAR
+      Parameters@1013 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      bytes@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Convert@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      JObject@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JTokenWriter@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JTokenWriter";
+      StringContent@1009 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.StringContent";
+      Encoding@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      HttpResponseMessage@1010 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      RESTWSManagement@1008 : Codeunit 60000;
+      AzureStorageAPI@1014 : Codeunit 70001;
+      Base64String@1004 : Text;
+      result@1012 : Text;
+    BEGIN
+      bytes := MemStream.GetBuffer();
+      Base64String := Convert.ToBase64String(bytes,0,bytes.Length);
+
+      JTokenWriter := JTokenWriter.JTokenWriter;
+      WITH JTokenWriter DO BEGIN
+        WriteStartObject;
+        WritePropertyName('printerId');
+        WriteValue(FORMAT(PrinterId));
+        WritePropertyName('title');
+        WriteValue(Filename);
+        WritePropertyName('contentType');
+        WriteValue('pdf_base64');
+        WritePropertyName('content');
+        WriteValue(Base64String);
+        WritePropertyName('source');
+        WriteValue(FORMAT(USERID));
+        WriteEndObject;
+        JObject := Token;
+      END;
+
+      StringContent := StringContent.StringContent(JObject.ToString,Encoding.UTF8,'application/json');
+
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',APIBaseUrl);
+      Parameters.Add('path','printjobs');
+      Parameters.Add('restmethod','POST');
+      Parameters.Add('username',GetAPIKey);
+      Parameters.Add('httpcontent',StringContent);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+      EXIT(result);
+    END;
+
+    LOCAL PROCEDURE GetAPIKey@3() : Text;
+    VAR
+      PrintNodeSetup@1000 : Record 71000;
+    BEGIN
+      PrintNodeSetup.GET;
+      PrintNodeSetup.TESTFIELD("API Key");
+      EXIT(PrintNodeSetup.GetAPIKey);
+    END;
+
+    PROCEDURE IsPrintNodeEnabled@6() : Boolean;
+    VAR
+      PrintNodeSetup@1000 : Record 71000;
+    BEGIN
+      IF PrintNodeSetup.GET THEN
+        EXIT(PrintNodeSetup."Enable PrintNode");
+
+      EXIT(FALSE);
+    END;
+
+    LOCAL PROCEDURE APIBaseUrl@4() : Text;
+    BEGIN
+      EXIT('https://api.printnode.com/');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

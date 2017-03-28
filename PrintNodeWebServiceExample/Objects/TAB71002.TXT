@@ -1,0 +1,39 @@
+OBJECT Table 71002 PrintNode Printer
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    LookupPageID=Page71003;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Id                  ;Integer        }
+    { 2   ;   ;Computer            ;Text50         }
+    { 3   ;   ;Name                ;Text100        }
+    { 4   ;   ;State               ;Text30         }
+    { 5   ;   ;Computer State      ;Text30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("PrintNode Computer".State WHERE (Name=FIELD(Computer)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Id                                      ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+    { 1   ;DropDown            ;Id,Computer,Name                         }
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,65 @@
+OBJECT Codeunit 60000 REST WS Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE CallRESTWebService@1000000002(VAR Parameters@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";VAR HttpResponseMessage@1000 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage") : Boolean;
+    VAR
+      HttpContent@1001 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpContent";
+      HttpClient@1000000003 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpClient";
+      AuthHeaderValue@1004 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.AuthenticationHeaderValue";
+      EntityTagHeaderValue@1007 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.EntityTagHeaderValue";
+      Uri@1000000002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+      bytes@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Encoding@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      Convert@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      HttpRequestMessage@1008 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpRequestMessage";
+      HttpMethod@1009 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpMethod";
+    BEGIN
+      HttpClient := HttpClient.HttpClient();
+      HttpClient.BaseAddress := Uri.Uri(FORMAT(Parameters.Item('baseurl')));
+
+      HttpRequestMessage :=
+        HttpRequestMessage.HttpRequestMessage(HttpMethod.HttpMethod(UPPERCASE(FORMAT(Parameters.Item('restmethod')))),
+                                              FORMAT(Parameters.Item('path')));;
+
+      IF Parameters.ContainsKey('accept') THEN
+        HttpRequestMessage.Headers.Add('Accept',FORMAT(Parameters.Item('accept')));
+
+      IF Parameters.ContainsKey('username') THEN BEGIN
+        IF Parameters.ContainsKey('password') THEN
+          bytes := Encoding.ASCII.GetBytes(STRSUBSTNO('%1:%2',FORMAT(Parameters.Item('username')),FORMAT(Parameters.Item('password'))))
+        ELSE
+          bytes := Encoding.ASCII.GetBytes(STRSUBSTNO('%1:%2',FORMAT(Parameters.Item('username')),''));
+        AuthHeaderValue := AuthHeaderValue.AuthenticationHeaderValue('Basic',Convert.ToBase64String(bytes));
+        HttpRequestMessage.Headers.Authorization := AuthHeaderValue;
+      END;
+
+      IF Parameters.ContainsKey('etag') THEN
+        HttpRequestMessage.Headers.IfMatch.Add(Parameters.Item('etag'));
+
+      IF Parameters.ContainsKey('httpcontent') THEN
+        HttpRequestMessage.Content := Parameters.Item('httpcontent');
+
+      HttpResponseMessage := HttpClient.SendAsync(HttpRequestMessage).Result;
+      EXIT(HttpResponseMessage.IsSuccessStatusCode);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

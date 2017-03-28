@@ -1,0 +1,856 @@
+OBJECT Table 71000 PrintNode Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;Primary Key         ;Code10        ;CaptionML=ENU=Primary Key }
+    { 2   ;   ;API Key             ;GUID          ;CaptionML=ENU=API Key }
+    { 3   ;   ;Enable PrintNode    ;Boolean       ;OnValidate=BEGIN
+                                                                TESTFIELD("API Key");
+                                                              END;
+
+                                                   CaptionML=ENU=Enable PrintNode }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE SetAPIKey@1(AccessKey@1000 : Text);
+    VAR
+      ServicePassword@1001 : Record 1261;
+    BEGIN
+      IF ISNULLGUID("API Key") OR NOT ServicePassword.GET("API Key") THEN BEGIN
+        ServicePassword.SavePassword(AccessKey);
+        ServicePassword.INSERT(TRUE);
+        "API Key" := ServicePassword.Key;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(AccessKey);
+        ServicePassword.MODIFY;
+      END;
+    END;
+
+    PROCEDURE GetAPIKey@2() : Text;
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF NOT ISNULLGUID("API Key") THEN
+        IF ServicePassword.GET("API Key") THEN
+          EXIT(ServicePassword.GetPassword);
+    END;
+
+    PROCEDURE Refresh@3();
+    VAR
+      PrintNodeManagement@1000 : Codeunit 71000;
+    BEGIN
+      PrintNodeManagement.Refresh();
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Table 71001 PrintNode Computer
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;Id                  ;Integer        }
+    { 2   ;   ;Name                ;Text30         }
+    { 3   ;   ;Hostname            ;Text30         }
+    { 4   ;   ;State               ;Text30         }
+    { 5   ;   ;Printers            ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("PrintNode Printer" WHERE (Computer=FIELD(Name)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Id                                      ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Table 71002 PrintNode Printer
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    LookupPageID=Page71003;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Id                  ;Integer        }
+    { 2   ;   ;Computer            ;Text50         }
+    { 3   ;   ;Name                ;Text100        }
+    { 4   ;   ;State               ;Text30         }
+    { 5   ;   ;Computer State      ;Text30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("PrintNode Computer".State WHERE (Name=FIELD(Computer)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Id                                      ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+    { 1   ;DropDown            ;Id,Computer,Name                         }
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 60000 REST WS Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE CallRESTWebService@1000000002(VAR Parameters@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";VAR HttpResponseMessage@1000 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage") : Boolean;
+    VAR
+      HttpContent@1001 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpContent";
+      HttpClient@1000000003 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpClient";
+      AuthHeaderValue@1004 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.AuthenticationHeaderValue";
+      EntityTagHeaderValue@1007 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.Headers.EntityTagHeaderValue";
+      Uri@1000000002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Uri";
+      bytes@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Encoding@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      Convert@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      HttpRequestMessage@1008 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpRequestMessage";
+      HttpMethod@1009 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpMethod";
+    BEGIN
+      HttpClient := HttpClient.HttpClient();
+      HttpClient.BaseAddress := Uri.Uri(FORMAT(Parameters.Item('baseurl')));
+
+      HttpRequestMessage :=
+        HttpRequestMessage.HttpRequestMessage(HttpMethod.HttpMethod(UPPERCASE(FORMAT(Parameters.Item('restmethod')))),
+                                              FORMAT(Parameters.Item('path')));;
+
+      IF Parameters.ContainsKey('accept') THEN
+        HttpRequestMessage.Headers.Add('Accept',FORMAT(Parameters.Item('accept')));
+
+      IF Parameters.ContainsKey('username') THEN BEGIN
+        IF Parameters.ContainsKey('password') THEN
+          bytes := Encoding.ASCII.GetBytes(STRSUBSTNO('%1:%2',FORMAT(Parameters.Item('username')),FORMAT(Parameters.Item('password'))))
+        ELSE
+          bytes := Encoding.ASCII.GetBytes(STRSUBSTNO('%1:%2',FORMAT(Parameters.Item('username')),''));
+        AuthHeaderValue := AuthHeaderValue.AuthenticationHeaderValue('Basic',Convert.ToBase64String(bytes));
+        HttpRequestMessage.Headers.Authorization := AuthHeaderValue;
+      END;
+
+      IF Parameters.ContainsKey('etag') THEN
+        HttpRequestMessage.Headers.IfMatch.Add(Parameters.Item('etag'));
+
+      IF Parameters.ContainsKey('httpcontent') THEN
+        HttpRequestMessage.Content := Parameters.Item('httpcontent');
+
+      HttpResponseMessage := HttpClient.SendAsync(HttpRequestMessage).Result;
+      EXIT(HttpResponseMessage.IsSuccessStatusCode);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 60001 Json Helper Functions
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE GetValueAsText@2(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Text;
+    BEGIN
+      ReturnValue := JObject.GetValue(PropertyName).ToString;
+    END;
+
+    PROCEDURE GetValueAsInteger@8(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Integer;
+    VAR
+      DotNetInteger@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Int32";
+    BEGIN
+      ReturnValue := DotNetInteger.Parse(JObject.GetValue(PropertyName).ToString);
+    END;
+
+    PROCEDURE GetValueAsDecimal@3(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Decimal;
+    VAR
+      DotNetDecimal@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Decimal";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      ReturnValue := DotNetDecimal.Parse(JObject.GetValue(PropertyName).ToString,CultureInfo.InvariantCulture);
+    END;
+
+    PROCEDURE GetValueAsDate@5(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Date;
+    VAR
+      DotNetDateTime@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DT2DATE(DotNetDateTime);
+    END;
+
+    PROCEDURE GetValueAsTime@4(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Time;
+    VAR
+      DotNetDateTime@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DT2TIME(DotNetDateTime);
+    END;
+
+    PROCEDURE GetValueAsDateTime@6(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : DateTime;
+    VAR
+      DotNetDateTime@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DotNetDateTime;
+    END;
+
+    PROCEDURE GetValueAsBoolean@7(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Boolean;
+    VAR
+      DotNetBoolean@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Boolean";
+    BEGIN
+      ReturnValue := DotNetBoolean.Parse(JObject.GetValue(PropertyName).ToString);
+    END;
+
+    PROCEDURE GetODataErrorMessage@9(ErrorObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken") ReturnValue : Text;
+    VAR
+      JToken@1001 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+    BEGIN
+      JToken := ErrorObject.SelectToken('$.[''odata.error''].[''message'']');
+      ReturnValue := GetValueAsText(JToken,'value');
+    END;
+
+    [TryFunction]
+    PROCEDURE TryParse@1(json@1000 : Text;VAR JToken@1002 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken");
+    BEGIN
+      JToken := JToken.Parse(json);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 71000 PrintNode Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ServerSaveAsPdfFailedErr@1000 : TextConst 'ENU=Cannot open the document because it is empty or cannot be created.';
+
+    PROCEDURE Refresh@5();
+    BEGIN
+      RefreshComputers();
+      RefreshPrinters();
+    END;
+
+    LOCAL PROCEDURE RefreshComputers@1();
+    VAR
+      Parameters@1009 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      PrintNodeComputer@1000 : Record 71001;
+      RESTWSManagement@1005 : Codeunit 60000;
+      JsonHelperFunctions@1010 : Codeunit 60001;
+      HttpResponseMessage@1004 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      JArray@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      JObject@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      result@1002 : Text;
+    BEGIN
+      PrintNodeComputer.DELETEALL;
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',APIBaseUrl);
+      Parameters.Add('path','computers');
+      Parameters.Add('restmethod','GET');
+      Parameters.Add('username',GetAPIKey);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+      JsonHelperFunctions.TryParse(result,JArray);
+
+      FOREACH JObject IN JArray DO BEGIN
+        PrintNodeComputer.INIT;
+        PrintNodeComputer.Id := JsonHelperFunctions.GetValueAsInteger(JObject,'id');
+        PrintNodeComputer.Name := JsonHelperFunctions.GetValueAsText(JObject,'name');
+        PrintNodeComputer.Hostname := JsonHelperFunctions.GetValueAsText(JObject,'hostname');
+        PrintNodeComputer.State := JsonHelperFunctions.GetValueAsText(JObject,'state');
+        PrintNodeComputer.INSERT;
+      END;
+    END;
+
+    LOCAL PROCEDURE RefreshPrinters@2();
+    VAR
+      Parameters@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      PrintNodePrinter@1008 : Record 71002;
+      RESTWSManagement@1007 : Codeunit 60000;
+      JsonHelperFunctions@1012 : Codeunit 60001;
+      HttpResponseMessage@1006 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      JArray@1003 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JArray";
+      JObject@1002 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JObjectComputer@1009 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      result@1000 : Text;
+    BEGIN
+      PrintNodePrinter.DELETEALL;
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',APIBaseUrl);
+      Parameters.Add('path','printers');
+      Parameters.Add('restmethod','GET');
+      Parameters.Add('username',GetAPIKey);
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+      JsonHelperFunctions.TryParse(result,JArray);
+
+      FOREACH JObject IN JArray DO BEGIN
+        PrintNodePrinter.INIT;
+        PrintNodePrinter.Id := JsonHelperFunctions.GetValueAsInteger(JObject,'id');
+        JObjectComputer := JObject.GetValue('computer');
+        PrintNodePrinter.Computer := JsonHelperFunctions.GetValueAsText(JObjectComputer,'name');
+        PrintNodePrinter.Name := JsonHelperFunctions.GetValueAsText(JObject,'name');
+        PrintNodePrinter.State := JsonHelperFunctions.GetValueAsText(JObject,'state');
+        PrintNodePrinter.INSERT;
+      END;
+    END;
+
+    PROCEDURE NewPrintJob@7(PrinterId@1000 : Integer;MemStream@1015 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";Filename@1001 : Text) : Text;
+    VAR
+      Parameters@1013 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.Dictionary`2";
+      bytes@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Convert@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      JObject@1006 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";
+      JTokenWriter@1007 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JTokenWriter";
+      StringContent@1009 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.StringContent";
+      Encoding@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      HttpResponseMessage@1010 : DotNet "'System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.System.Net.Http.HttpResponseMessage";
+      RESTWSManagement@1008 : Codeunit 60000;
+      AzureStorageAPI@1014 : Codeunit 70001;
+      Base64String@1004 : Text;
+      result@1012 : Text;
+    BEGIN
+      bytes := MemStream.GetBuffer();
+      Base64String := Convert.ToBase64String(bytes,0,bytes.Length);
+
+      JTokenWriter := JTokenWriter.JTokenWriter;
+      WITH JTokenWriter DO BEGIN
+        WriteStartObject;
+        WritePropertyName('printerId');
+        WriteValue(FORMAT(PrinterId));
+        WritePropertyName('title');
+        WriteValue(Filename);
+        WritePropertyName('contentType');
+        WriteValue('pdf_base64');
+        WritePropertyName('content');
+        WriteValue(Base64String);
+        WritePropertyName('source');
+        WriteValue(FORMAT(USERID));
+        WriteEndObject;
+        JObject := Token;
+      END;
+
+      StringContent := StringContent.StringContent(JObject.ToString,Encoding.UTF8,'application/json');
+
+      Parameters := Parameters.Dictionary();
+      Parameters.Add('baseurl',APIBaseUrl);
+      Parameters.Add('path','printjobs');
+      Parameters.Add('restmethod','POST');
+      Parameters.Add('username',GetAPIKey);
+      Parameters.Add('httpcontent',StringContent);
+
+      RESTWSManagement.CallRESTWebService(Parameters,HttpResponseMessage);
+
+      result := HttpResponseMessage.Content.ReadAsStringAsync.Result;
+      EXIT(result);
+    END;
+
+    LOCAL PROCEDURE GetAPIKey@3() : Text;
+    VAR
+      PrintNodeSetup@1000 : Record 71000;
+    BEGIN
+      PrintNodeSetup.GET;
+      PrintNodeSetup.TESTFIELD("API Key");
+      EXIT(PrintNodeSetup.GetAPIKey);
+    END;
+
+    PROCEDURE IsPrintNodeEnabled@6() : Boolean;
+    VAR
+      PrintNodeSetup@1000 : Record 71000;
+    BEGIN
+      IF PrintNodeSetup.GET THEN
+        EXIT(PrintNodeSetup."Enable PrintNode");
+
+      EXIT(FALSE);
+    END;
+
+    LOCAL PROCEDURE APIBaseUrl@4() : Text;
+    BEGIN
+      EXIT('https://api.printnode.com/');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 71001 PrintNode Print Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ServerSaveAsPdfFailedErr@1000 : TextConst 'ENU=Cannot open the document because it is empty or cannot be created.';
+      PrintJobSendMsg@1001 : TextConst 'ENU=Output has been sent to printer.\Print job id: %1';
+
+    [EventSubscriber(Page,42,OnBeforeActionEvent,Action224)]
+    LOCAL PROCEDURE SalesOrderCard_OnBeforePrintSalesOrderConfirmation@4(VAR Rec@1000 : Record 36);
+    BEGIN
+      HandlePrintSalesOrderConfirmation(Rec);
+    END;
+
+    [EventSubscriber(Page,9305,OnBeforeActionEvent,Action151)]
+    LOCAL PROCEDURE SalesOrderList_OnBeforePrintSalesOrderConfirmation@8(VAR Rec@1000 : Record 36);
+    BEGIN
+      HandlePrintSalesOrderConfirmation(Rec);
+    END;
+
+    LOCAL PROCEDURE HandlePrintSalesOrderConfirmation@1(SalesHeader@1000 : Record 36);
+    BEGIN
+      SalesHeader.SETRECFILTER;
+      IF SendReportToPrintNode(REPORT::"Order Confirmation",SalesHeader) THEN BEGIN
+        COMMIT;
+        ERROR('');
+      END;
+    END;
+
+    [EventSubscriber(Page,132,OnBeforeActionEvent,Print)]
+    LOCAL PROCEDURE PostedSalesInvoiceCard_OnBeforePrintSalesInvoice@2(VAR Rec@1000 : Record 112);
+    BEGIN
+      HandlePrintSalesInvoice(Rec);
+    END;
+
+    [EventSubscriber(Page,143,OnBeforeActionEvent,Print)]
+    LOCAL PROCEDURE PostedSalesInvoiceList_OnBeforePrintSalesInvoice@7(VAR Rec@1000 : Record 112);
+    BEGIN
+      HandlePrintSalesInvoice(Rec);
+    END;
+
+    LOCAL PROCEDURE HandlePrintSalesInvoice@5(SalesInvoiceHeader@1000 : Record 112);
+    BEGIN
+      SalesInvoiceHeader.SETRECFILTER;
+      IF SendReportToPrintNode(REPORT::"Standard Sales - Invoice",SalesInvoiceHeader) THEN BEGIN
+        COMMIT;
+        ERROR('');
+      END;
+    END;
+
+    LOCAL PROCEDURE SendReportToPrintNode@9(ReportId@1009 : Integer;RecVariant@1000 : Variant) : Boolean;
+    VAR
+      PrintNodePrinter@1003 : Record 71002;
+      TempBlob@1001 : Record 99008535;
+      AllObjWithCaption@1013 : Record 2000000058;
+      MemStream@1007 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      RecRef@1002 : RecordRef;
+      PrintNodeManagement@1004 : Codeunit 71000;
+      OutStr@1006 : OutStream;
+      InStr@1010 : InStream;
+      result@1005 : Text;
+      XmlParameters@1008 : Text;
+      Filename@1012 : Text;
+      AzureStorageAPI@1011 : Codeunit 70001;
+    BEGIN
+      IF NOT PrintNodeManagement.IsPrintNodeEnabled THEN
+        EXIT;
+
+      IF CURRENTCLIENTTYPE = CLIENTTYPE::Windows THEN
+        EXIT;
+
+      AllObjWithCaption.GET(AllObjWithCaption."Object Type"::Report,ReportId);
+
+      IF RecVariant.ISRECORD THEN BEGIN
+        RecRef.GETTABLE(RecVariant);
+        XmlParameters := GetXmlParameters(RecRef);
+        Filename := STRSUBSTNO('%1 - %2 - %3.pdf',COMPANYNAME,AllObjWithCaption."Object Caption",RecRef.RECORDID)
+      END ELSE BEGIN
+        Filename := STRSUBSTNO('%1 - %2 - %3.pdf',COMPANYNAME,AllObjWithCaption."Object Caption",CURRENTDATETIME);
+      END;
+
+      XmlParameters := REPORT.RUNREQUESTPAGE(ReportId,XmlParameters);
+      IF XmlParameters = '' THEN
+        ERROR('');
+
+      PrintNodeManagement.Refresh;
+      COMMIT;
+      PrintNodePrinter.SETRANGE("Computer State",'connected');
+      PrintNodePrinter.SETRANGE(State,'online');
+      IF PAGE.RUNMODAL(0,PrintNodePrinter) <> ACTION::LookupOK THEN
+        ERROR('');
+
+      TempBlob.Blob.CREATEOUTSTREAM(OutStr);
+
+      IF RecVariant.ISRECORD THEN
+        REPORT.SAVEAS(ReportId,XmlParameters,REPORTFORMAT::Pdf,OutStr,RecRef)
+      ELSE
+        REPORT.SAVEAS(ReportId,XmlParameters,REPORTFORMAT::Pdf,OutStr);
+
+      TempBlob.Blob.CREATEINSTREAM(InStr);
+      MemStream := MemStream.MemoryStream();
+      COPYSTREAM(MemStream,InStr);
+
+      result := PrintNodeManagement.NewPrintJob(PrintNodePrinter.Id,MemStream,Filename);
+
+      MESSAGE(PrintJobSendMsg,result);
+      EXIT(TRUE);
+    END;
+
+    LOCAL PROCEDURE GetXmlParameters@3(RecRef@1005 : RecordRef) : Text;
+    VAR
+      XMLDOMMgt@1004 : Codeunit 6224;
+      DataItemXmlNode@1003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      DataItemsXmlNode@1002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      XmlDoc@1001 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      ReportParametersXmlNode@1000 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+    BEGIN
+      XmlDoc := XmlDoc.XmlDocument;
+
+      XMLDOMMgt.AddRootElement(XmlDoc,'ReportParameters',ReportParametersXmlNode);
+      XMLDOMMgt.AddDeclaration(XmlDoc,'1.0','utf-8','yes');
+
+      XMLDOMMgt.AddElement(ReportParametersXmlNode,'DataItems','','',DataItemsXmlNode);
+      XMLDOMMgt.AddElement(DataItemsXmlNode,'DataItem',RecRef.GETVIEW(FALSE),'',DataItemXmlNode);
+      XMLDOMMgt.AddAttribute(DataItemXmlNode,'name',RecRef.CAPTION);
+
+      EXIT(XmlDoc.InnerXml);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 71000 PrintNode Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table71000;
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       TempAPIKey := '';
+                       IF NOT ISNULLGUID("API Key") THEN
+                         TempAPIKey := '**********';
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 6       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 7       ;1   ;Action    ;
+                      Name=Refresh;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Refresh;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Refresh();
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Enable PrintNode" }
+
+    { 3   ;2   ;Field     ;
+                Name=TempAPIKey;
+                CaptionML=ENU=API Key;
+                SourceExpr=TempAPIKey;
+                OnValidate=BEGIN
+                             SetAPIKey(TempAPIKey);
+                             COMMIT;
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 4   ;1   ;Part      ;
+                PagePartID=Page71001;
+                PartType=Page }
+
+    { 5   ;1   ;Part      ;
+                SubPageLink=Computer=FIELD(Name);
+                PagePartID=Page71002;
+                ProviderID=4;
+                PartType=Page }
+
+  }
+  CODE
+  {
+    VAR
+      TempAPIKey@1000 : Text;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 71001 PrintNode Computers Listpart
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table71001;
+    PageType=ListPart;
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Id }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Hostname }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=State }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr=Printers }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 71002 PrintNode Printers Listpart
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table71002;
+    PageType=ListPart;
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Id }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Computer }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=State }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 71003 PrintNode Printer Selection
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table71002;
+    PageType=List;
+    OnOpenPage=BEGIN
+                 IF NOT PrintNodeSetup.GET THEN BEGIN
+                   PrintNodeSetup.INIT;
+                   PrintNodeSetup.INSERT;
+                 END;
+
+                 IF PrintNodeSetup.GetAPIKey <> '' THEN
+                   PrintNodeSetup.Refresh;
+               END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Id }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Computer }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=State }
+
+  }
+  CODE
+  {
+    VAR
+      PrintNodeSetup@1000 : Record 71000;
+
+    BEGIN
+    END.
+  }
+}
+

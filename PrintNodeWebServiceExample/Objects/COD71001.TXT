@@ -1,0 +1,147 @@
+OBJECT Codeunit 71001 PrintNode Print Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ServerSaveAsPdfFailedErr@1000 : TextConst 'ENU=Cannot open the document because it is empty or cannot be created.';
+      PrintJobSendMsg@1001 : TextConst 'ENU=Output has been sent to printer.\Print job id: %1';
+
+    [EventSubscriber(Page,42,OnBeforeActionEvent,Action224)]
+    LOCAL PROCEDURE SalesOrderCard_OnBeforePrintSalesOrderConfirmation@4(VAR Rec@1000 : Record 36);
+    BEGIN
+      HandlePrintSalesOrderConfirmation(Rec);
+    END;
+
+    [EventSubscriber(Page,9305,OnBeforeActionEvent,Action151)]
+    LOCAL PROCEDURE SalesOrderList_OnBeforePrintSalesOrderConfirmation@8(VAR Rec@1000 : Record 36);
+    BEGIN
+      HandlePrintSalesOrderConfirmation(Rec);
+    END;
+
+    LOCAL PROCEDURE HandlePrintSalesOrderConfirmation@1(SalesHeader@1000 : Record 36);
+    BEGIN
+      SalesHeader.SETRECFILTER;
+      IF SendReportToPrintNode(REPORT::"Order Confirmation",SalesHeader) THEN BEGIN
+        COMMIT;
+        ERROR('');
+      END;
+    END;
+
+    [EventSubscriber(Page,132,OnBeforeActionEvent,Print)]
+    LOCAL PROCEDURE PostedSalesInvoiceCard_OnBeforePrintSalesInvoice@2(VAR Rec@1000 : Record 112);
+    BEGIN
+      HandlePrintSalesInvoice(Rec);
+    END;
+
+    [EventSubscriber(Page,143,OnBeforeActionEvent,Print)]
+    LOCAL PROCEDURE PostedSalesInvoiceList_OnBeforePrintSalesInvoice@7(VAR Rec@1000 : Record 112);
+    BEGIN
+      HandlePrintSalesInvoice(Rec);
+    END;
+
+    LOCAL PROCEDURE HandlePrintSalesInvoice@5(SalesInvoiceHeader@1000 : Record 112);
+    BEGIN
+      SalesInvoiceHeader.SETRECFILTER;
+      IF SendReportToPrintNode(REPORT::"Standard Sales - Invoice",SalesInvoiceHeader) THEN BEGIN
+        COMMIT;
+        ERROR('');
+      END;
+    END;
+
+    LOCAL PROCEDURE SendReportToPrintNode@9(ReportId@1009 : Integer;RecVariant@1000 : Variant) : Boolean;
+    VAR
+      PrintNodePrinter@1003 : Record 71002;
+      TempBlob@1001 : Record 99008535;
+      AllObjWithCaption@1013 : Record 2000000058;
+      MemStream@1007 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      RecRef@1002 : RecordRef;
+      PrintNodeManagement@1004 : Codeunit 71000;
+      OutStr@1006 : OutStream;
+      InStr@1010 : InStream;
+      result@1005 : Text;
+      XmlParameters@1008 : Text;
+      Filename@1012 : Text;
+      AzureStorageAPI@1011 : Codeunit 70001;
+    BEGIN
+      IF NOT PrintNodeManagement.IsPrintNodeEnabled THEN
+        EXIT;
+
+      IF CURRENTCLIENTTYPE = CLIENTTYPE::Windows THEN
+        EXIT;
+
+      AllObjWithCaption.GET(AllObjWithCaption."Object Type"::Report,ReportId);
+
+      IF RecVariant.ISRECORD THEN BEGIN
+        RecRef.GETTABLE(RecVariant);
+        XmlParameters := GetXmlParameters(RecRef);
+        Filename := STRSUBSTNO('%1 - %2 - %3.pdf',COMPANYNAME,AllObjWithCaption."Object Caption",RecRef.RECORDID)
+      END ELSE BEGIN
+        Filename := STRSUBSTNO('%1 - %2 - %3.pdf',COMPANYNAME,AllObjWithCaption."Object Caption",CURRENTDATETIME);
+      END;
+
+      XmlParameters := REPORT.RUNREQUESTPAGE(ReportId,XmlParameters);
+      IF XmlParameters = '' THEN
+        ERROR('');
+
+      PrintNodeManagement.Refresh;
+      COMMIT;
+      PrintNodePrinter.SETRANGE("Computer State",'connected');
+      PrintNodePrinter.SETRANGE(State,'online');
+      IF PAGE.RUNMODAL(0,PrintNodePrinter) <> ACTION::LookupOK THEN
+        ERROR('');
+
+      TempBlob.Blob.CREATEOUTSTREAM(OutStr);
+
+      IF RecVariant.ISRECORD THEN
+        REPORT.SAVEAS(ReportId,XmlParameters,REPORTFORMAT::Pdf,OutStr,RecRef)
+      ELSE
+        REPORT.SAVEAS(ReportId,XmlParameters,REPORTFORMAT::Pdf,OutStr);
+
+      TempBlob.Blob.CREATEINSTREAM(InStr);
+      MemStream := MemStream.MemoryStream();
+      COPYSTREAM(MemStream,InStr);
+
+      result := PrintNodeManagement.NewPrintJob(PrintNodePrinter.Id,MemStream,Filename);
+
+      MESSAGE(PrintJobSendMsg,result);
+      EXIT(TRUE);
+    END;
+
+    LOCAL PROCEDURE GetXmlParameters@3(RecRef@1005 : RecordRef) : Text;
+    VAR
+      XMLDOMMgt@1004 : Codeunit 6224;
+      DataItemXmlNode@1003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      DataItemsXmlNode@1002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      XmlDoc@1001 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      ReportParametersXmlNode@1000 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+    BEGIN
+      XmlDoc := XmlDoc.XmlDocument;
+
+      XMLDOMMgt.AddRootElement(XmlDoc,'ReportParameters',ReportParametersXmlNode);
+      XMLDOMMgt.AddDeclaration(XmlDoc,'1.0','utf-8','yes');
+
+      XMLDOMMgt.AddElement(ReportParametersXmlNode,'DataItems','','',DataItemsXmlNode);
+      XMLDOMMgt.AddElement(DataItemsXmlNode,'DataItem',RecRef.GETVIEW(FALSE),'',DataItemXmlNode);
+      XMLDOMMgt.AddAttribute(DataItemXmlNode,'name',RecRef.CAPTION);
+
+      EXIT(XmlDoc.InnerXml);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

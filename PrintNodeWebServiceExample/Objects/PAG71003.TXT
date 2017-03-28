@@ -1,0 +1,57 @@
+OBJECT Page 71003 PrintNode Printer Selection
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table71002;
+    PageType=List;
+    OnOpenPage=BEGIN
+                 IF NOT PrintNodeSetup.GET THEN BEGIN
+                   PrintNodeSetup.INIT;
+                   PrintNodeSetup.INSERT;
+                 END;
+
+                 IF PrintNodeSetup.GetAPIKey <> '' THEN
+                   PrintNodeSetup.Refresh;
+               END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Id }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Computer }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=State }
+
+  }
+  CODE
+  {
+    VAR
+      PrintNodeSetup@1000 : Record 71000;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,37 @@
+OBJECT Table 71001 PrintNode Computer
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;Id                  ;Integer        }
+    { 2   ;   ;Name                ;Text30         }
+    { 3   ;   ;Hostname            ;Text30         }
+    { 4   ;   ;State               ;Text30         }
+    { 5   ;   ;Printers            ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("PrintNode Printer" WHERE (Computer=FIELD(Name)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Id                                      ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,91 @@
+OBJECT Codeunit 60001 Json Helper Functions
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE GetValueAsText@2(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Text;
+    BEGIN
+      ReturnValue := JObject.GetValue(PropertyName).ToString;
+    END;
+
+    PROCEDURE GetValueAsInteger@8(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Integer;
+    VAR
+      DotNetInteger@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Int32";
+    BEGIN
+      ReturnValue := DotNetInteger.Parse(JObject.GetValue(PropertyName).ToString);
+    END;
+
+    PROCEDURE GetValueAsDecimal@3(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Decimal;
+    VAR
+      DotNetDecimal@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Decimal";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      ReturnValue := DotNetDecimal.Parse(JObject.GetValue(PropertyName).ToString,CultureInfo.InvariantCulture);
+    END;
+
+    PROCEDURE GetValueAsDate@5(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Date;
+    VAR
+      DotNetDateTime@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DT2DATE(DotNetDateTime);
+    END;
+
+    PROCEDURE GetValueAsTime@4(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Time;
+    VAR
+      DotNetDateTime@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DT2TIME(DotNetDateTime);
+    END;
+
+    PROCEDURE GetValueAsDateTime@6(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : DateTime;
+    VAR
+      DotNetDateTime@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.DateTime";
+      CultureInfo@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Globalization.CultureInfo";
+    BEGIN
+      DotNetDateTime := JObject.GetValue(PropertyName).ToObject(GETDOTNETTYPE(DotNetDateTime));
+      ReturnValue := DotNetDateTime;
+    END;
+
+    PROCEDURE GetValueAsBoolean@7(JObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JObject";PropertyName@1001 : Text) ReturnValue : Boolean;
+    VAR
+      DotNetBoolean@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Boolean";
+    BEGIN
+      ReturnValue := DotNetBoolean.Parse(JObject.GetValue(PropertyName).ToString);
+    END;
+
+    PROCEDURE GetODataErrorMessage@9(ErrorObject@1000 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken") ReturnValue : Text;
+    VAR
+      JToken@1001 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken";
+    BEGIN
+      JToken := ErrorObject.SelectToken('$.[''odata.error''].[''message'']');
+      ReturnValue := GetValueAsText(JToken,'value');
+    END;
+
+    [TryFunction]
+    PROCEDURE TryParse@1(json@1000 : Text;VAR JToken@1002 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.Linq.JToken");
+    BEGIN
+      JToken := JToken.Parse(json);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

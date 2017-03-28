@@ -1,0 +1,88 @@
+OBJECT Page 71000 PrintNode Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table71000;
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       TempAPIKey := '';
+                       IF NOT ISNULLGUID("API Key") THEN
+                         TempAPIKey := '**********';
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 6       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 7       ;1   ;Action    ;
+                      Name=Refresh;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Refresh;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Refresh();
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Enable PrintNode" }
+
+    { 3   ;2   ;Field     ;
+                Name=TempAPIKey;
+                CaptionML=ENU=API Key;
+                SourceExpr=TempAPIKey;
+                OnValidate=BEGIN
+                             SetAPIKey(TempAPIKey);
+                             COMMIT;
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 4   ;1   ;Part      ;
+                PagePartID=Page71001;
+                PartType=Page }
+
+    { 5   ;1   ;Part      ;
+                SubPageLink=Computer=FIELD(Name);
+                PagePartID=Page71002;
+                ProviderID=4;
+                PartType=Page }
+
+  }
+  CODE
+  {
+    VAR
+      TempAPIKey@1000 : Text;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,48 @@
+OBJECT Page 71001 PrintNode Computers Listpart
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table71001;
+    PageType=ListPart;
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Id }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Hostname }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=State }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr=Printers }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

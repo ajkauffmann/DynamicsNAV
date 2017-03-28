@@ -1,0 +1,67 @@
+OBJECT Table 71000 PrintNode Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28-03-17;
+    Time=12:00:00;
+    Modified=Yes;
+    Version List=WebService-Example;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;Primary Key         ;Code10        ;CaptionML=ENU=Primary Key }
+    { 2   ;   ;API Key             ;GUID          ;CaptionML=ENU=API Key }
+    { 3   ;   ;Enable PrintNode    ;Boolean       ;OnValidate=BEGIN
+                                                                TESTFIELD("API Key");
+                                                              END;
+
+                                                   CaptionML=ENU=Enable PrintNode }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE SetAPIKey@1(AccessKey@1000 : Text);
+    VAR
+      ServicePassword@1001 : Record 1261;
+    BEGIN
+      IF ISNULLGUID("API Key") OR NOT ServicePassword.GET("API Key") THEN BEGIN
+        ServicePassword.SavePassword(AccessKey);
+        ServicePassword.INSERT(TRUE);
+        "API Key" := ServicePassword.Key;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(AccessKey);
+        ServicePassword.MODIFY;
+      END;
+    END;
+
+    PROCEDURE GetAPIKey@2() : Text;
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF NOT ISNULLGUID("API Key") THEN
+        IF ServicePassword.GET("API Key") THEN
+          EXIT(ServicePassword.GetPassword);
+    END;
+
+    PROCEDURE Refresh@3();
+    VAR
+      PrintNodeManagement@1000 : Codeunit 71000;
+    BEGIN
+      PrintNodeManagement.Refresh();
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
